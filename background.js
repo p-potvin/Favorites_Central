@@ -44,3 +44,15 @@ browser.commands.onCommand.addListener(async (command) => {
 browser.action.onClicked.addListener(() => {
   browser.tabs.create({ url: "dashboard.html" });
 });
+
+// Handle cross-origin fetch requests from the dashboard
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "fetch_html") {
+    fetch(request.url)
+      .then(res => res.text())
+      .then(html => sendResponse({ html: html }))
+      .catch(err => sendResponse({ error: err.toString() }));
+    return true; // Keep the message channel open for async response
+  }
+});
+

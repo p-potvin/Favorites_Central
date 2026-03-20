@@ -296,15 +296,13 @@ function openModal(rawUrl, embedUrl) {
   } else if (rawUrl.match(/\.(mp4|webm|ogg)$/i)) {
     modalBody.innerHTML = `<video src="${rawUrl}" controls autoplay></video>`;
   } else {
-    // Attempt to fetch the URL and extract the raw video source to play it natively!
-    // Often proxying via hidden iframe or direct text scrape.
+    // Attempt to fetch the URL via the background script to bypass CORS restrictions
     modalBody.innerHTML = `<div style="display:flex; height:100%; align-items:center; justify-content:center; color:white; font-family:sans-serif;">Extracting video source...</div>`;
     
-    fetch(rawUrl)
-      .then(res => res.text())
-      .then(html => {
+    browser.runtime.sendMessage({ action: "fetch_html", url: rawUrl }).then(response => {
+      if (response && response.html) {
         const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
+        const doc = parser.parseFromString(response.html, "text/html");
         
         let videoSrc = "";
         
@@ -332,11 +330,11 @@ function openModal(rawUrl, embedUrl) {
             // Unsuccessful extraction: Fall back to just loading the page inside an iframe
             modalBody.innerHTML = `<iframe src="${rawUrl}" allow="autoplay; fullscreen" allowfullscreen sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
         }
-      })
-      .catch(e => {
-        // Fallback to iframe if fetch fails (e.g., cross-origin issues before manifest reload)
+      } else {
+        // Fallback to iframe if fetch fails
         modalBody.innerHTML = `<iframe src="${rawUrl}" allow="autoplay; fullscreen" allowfullscreen sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
-      });
+      }
+    });
   }
 }
 
