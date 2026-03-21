@@ -1,6 +1,10 @@
 // Listen for the "capture" request from the background script
 browser.runtime.onMessage.addListener((request) => {
   if (request.action === "get_video_data") {
+    if (hoveredElement) {
+      let targetLink = hoveredElement.closest("a") || hoveredElement;
+      addPermanentHeart(targetLink);
+    }
     return Promise.resolve(extractData(hoveredElement));
   } else if (request.action === "show_notification") {
     showNotification(request.type, request.message);
@@ -23,7 +27,24 @@ function addPermanentHeart(el) {
   
   const heart = document.createElement("div");
   heart.className = "favorites-central-heart";
-  heart.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#ef4444" stroke="white" stroke-width="1.5" style="width: 16px; height: 16px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); display: block;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
+  
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "#ef4444");
+  svg.setAttribute("stroke", "white");
+  svg.setAttribute("stroke-width", "1.5");
+  Object.assign(svg.style, {
+    width: "16px",
+    height: "16px",
+    filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))",
+    display: "block"
+  });
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z");
+  
+  svg.appendChild(path);
+  heart.appendChild(svg);
   
   Object.assign(heart.style, {
     position: "absolute",
@@ -106,6 +127,13 @@ function showNotification(type, message) {
     }
   } else {
     el.style.backgroundColor = "#ef4444"; // modern red
+    
+    // Remove optimistic heart if capture failed or background process failed
+    if (hoveredElement) {
+      let targetLink = hoveredElement.closest("a") || hoveredElement;
+      let hearts = targetLink.querySelectorAll(".favorites-central-heart");
+      hearts.forEach(h => h.remove());
+    }
   }
 
   document.body.appendChild(el);

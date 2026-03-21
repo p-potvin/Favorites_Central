@@ -35,11 +35,39 @@ themeToggle.addEventListener("click", () => {
 });
 
 function updateThemeIcon(theme) {
+  themeToggle.textContent = "";
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+
   if (theme === "light") {
-    themeToggle.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", "12");
+    circle.setAttribute("cy", "12");
+    circle.setAttribute("r", "5");
+    svg.appendChild(circle);
+
+    const lines = [
+      { x1: "12", y1: "1", x2: "12", y2: "3" },
+      { x1: "12", y1: "21", x2: "12", y2: "23" },
+      { x1: "4.22", y1: "4.22", x2: "5.64", y2: "5.64" },
+      { x1: "18.36", y1: "18.36", x2: "19.78", y2: "19.78" },
+      { x1: "1", y1: "12", x2: "3", y2: "12" },
+      { x1: "21", y1: "12", x2: "23", y2: "12" },
+      { x1: "4.22", y1: "19.78", x2: "5.64", y2: "18.36" },
+      { x1: "18.36", y1: "5.64", x2: "19.78", y2: "4.22" }
+    ];
+
+    lines.forEach(l => {
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      Object.entries(l).forEach(([k, v]) => line.setAttribute(k, v));
+      svg.appendChild(line);
+    });
   } else {
-    themeToggle.innerHTML = '<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z");
+    svg.appendChild(path);
   }
+  themeToggle.appendChild(svg);
 }
 
 try {
@@ -90,7 +118,7 @@ async function init() {
 }
 
 function render() {
-  listEl.innerHTML = "";
+  listEl.textContent = "";
   
   // 1. Filter
   let filtered = allVideos.filter(v => {
@@ -104,7 +132,10 @@ function render() {
   });
 
   if (filtered.length === 0) {
-    listEl.innerHTML = `<div class="empty-state">No items found matching your criteria.</div>`;
+    const emptyState = document.createElement("div");
+    emptyState.className = "empty-state";
+    emptyState.textContent = "No items found matching your criteria.";
+    listEl.appendChild(emptyState);
     return;
   }
 
@@ -154,10 +185,16 @@ function render() {
     if (state.group !== "none") {
       const header = document.createElement("div");
       header.className = "group-header" + (isCollapsed ? " collapsed" : "");
-      header.innerHTML = `
-        <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
-        ${groupName} (${items.length})
-      `;
+      
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 24 24");
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", "M7 10l5 5 5-5z");
+      svg.appendChild(path);
+      
+      header.appendChild(svg);
+      header.appendChild(document.createTextNode(` ${groupName} (${items.length})`));
+      
       header.addEventListener("click", () => {
         state.collapsedGroups[groupName] = !isCollapsed;
         saveState();
@@ -206,26 +243,72 @@ function render() {
               card.dataset.rawsrc = vid.rawVideoSrc;
           }
 
-          card.innerHTML = `
-            <button data-index="${vid.originalIndex}" class="delete" title="Delete">
-            <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
-          <div class="thumb-wrapper">
-            <img src="${vid.thumbnail || 'https://via.placeholder.com/300x168/161b22/FFFFFF?text=No+Preview'}" alt="Thumbnail">
-            ${durationBadge}
-          </div>
-          <div class="card-content">
-            <div class="title-area">
-              <div class="title" title="${vid.title}">${vid.title}</div>
-              <div class="meta-info">
-                <span class="badge">${typeBadge}</span>
-                <span>${dateStr}</span>
-              </div>
-              ${extraMeta ? `<div class="extra-meta">${extraMeta}</div>` : ''}
-            </div>
-          </div>
-        `;
-        groupContainer.appendChild(card);
+          const deleteBtn = document.createElement("button");
+          deleteBtn.dataset.index = vid.originalIndex;
+          deleteBtn.className = "delete";
+          deleteBtn.title = "Delete";
+          const delSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          delSvg.setAttribute("viewBox", "0 0 24 24");
+          const delPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          delPath.setAttribute("d", "M18 6L6 18M6 6l12 12");
+          delSvg.appendChild(delPath);
+          deleteBtn.appendChild(delSvg);
+          card.appendChild(deleteBtn);
+
+          const thumbWrapper = document.createElement("div");
+          thumbWrapper.className = "thumb-wrapper";
+          const thumbImg = document.createElement("img");
+          thumbImg.src = vid.thumbnail || 'https://via.placeholder.com/300x168/161b22/FFFFFF?text=No+Preview';
+          thumbImg.alt = "Thumbnail";
+          thumbWrapper.appendChild(thumbImg);
+          if (vid.duration) {
+              const durationBadgeEl = document.createElement("div");
+              durationBadgeEl.className = "duration-badge";
+              durationBadgeEl.textContent = vid.duration;
+              thumbWrapper.appendChild(durationBadgeEl);
+          }
+          card.appendChild(thumbWrapper);
+
+          const cardContent = document.createElement("div");
+          cardContent.className = "card-content";
+          const titleArea = document.createElement("div");
+          titleArea.className = "title-area";
+          const titleEl = document.createElement("div");
+          titleEl.className = "title";
+          titleEl.title = vid.title;
+          titleEl.textContent = vid.title;
+          titleArea.appendChild(titleEl);
+
+          const metaInfo = document.createElement("div");
+          metaInfo.className = "meta-info";
+          const typeBadgeEl = document.createElement("span");
+          typeBadgeEl.className = "badge";
+          typeBadgeEl.textContent = typeBadge;
+          metaInfo.appendChild(typeBadgeEl);
+          const dateSpan = document.createElement("span");
+          dateSpan.textContent = dateStr;
+          metaInfo.appendChild(dateSpan);
+          titleArea.appendChild(metaInfo);
+
+          if (vid.views || vid.uploaded) {
+              const extraMetaEl = document.createElement("div");
+              extraMetaEl.className = "extra-meta";
+              if (vid.views) {
+                  const viewSpan = document.createElement("span");
+                  viewSpan.textContent = vid.views;
+                  extraMetaEl.appendChild(viewSpan);
+              }
+              if (vid.uploaded) {
+                  const uploadSpan = document.createElement("span");
+                  uploadSpan.textContent = (vid.views ? " • " : "") + vid.uploaded;
+                  extraMetaEl.appendChild(uploadSpan);
+              }
+              titleArea.appendChild(extraMetaEl);
+          }
+          cardContent.appendChild(titleArea);
+          card.appendChild(cardContent);
+          
+          groupContainer.appendChild(card);
       });
       
       listEl.appendChild(groupContainer);
@@ -291,29 +374,111 @@ const modalBody = document.getElementById("modalBody");
 const closeModalBtn = document.getElementById("closeModal");
 
 function openModal(rawUrl, embedUrl, rawVideoSrc) {
-  modalBody.innerHTML = "";
+  modalBody.textContent = "";
   videoModal.classList.add("active");
+
+  const createContainer = (content) => {
+    const container = document.createElement("div");
+    container.style.display = "flex";
+    container.style.flexDirection = "column";
+    container.style.height = "100%";
+    container.style.alignItems = "center";
+    container.style.justifyContent = "center";
+    container.style.color = "white";
+    container.style.fontFamily = "sans-serif";
+    container.style.textAlign = "center";
+    if (typeof content === "string") {
+      container.textContent = content;
+    } else {
+      container.appendChild(content);
+    }
+    return container;
+  };
 
   // 1. If we recorded the hot .mp4 source at the exact moment of liking, play it instantly!
   if (rawVideoSrc) {
-      modalBody.innerHTML = `<video src="${rawVideoSrc}" controls autoplay></video>`;
+      if (rawVideoSrc.includes(".m3u8")) {
+         // m3u8 links usually have expired signatures! Let's live-fetch a fresh one via the background tab
+         const loading = createContainer("");
+         const p1 = document.createElement("p");
+         p1.textContent = "Fetching fresh HLS playlist (m3u8) to bypass expired signatures...";
+         const p2 = document.createElement("p");
+         p2.style.fontSize = "0.8rem";
+         p2.style.color = "#aaa";
+         p2.textContent = "This takes a few seconds.";
+         loading.appendChild(p1);
+         loading.appendChild(p2);
+         modalBody.appendChild(loading);
+
+         browser.runtime.sendMessage({ action: "extract_fresh_m3u8", url: rawUrl }).then(response => {
+            const finalSrc = (response && response.src) ? response.src : rawVideoSrc; // fallback to old if failed
+            modalBody.textContent = "";
+            
+            const copyBox = document.createElement("div");
+            copyBox.style.position = "absolute";
+            copyBox.style.top = "10px";
+            copyBox.style.left = "10px";
+            copyBox.style.zIndex = "1000";
+            copyBox.style.background = "rgba(0,0,0,0.6)";
+            copyBox.style.padding = "5px 10px";
+            copyBox.style.borderRadius = "4px";
+
+            const input = document.createElement("input");
+            input.type = "text";
+            input.value = finalSrc;
+            input.readOnly = true;
+            input.style.background = "transparent";
+            input.style.border = "none";
+            input.style.color = "#1f6feb";
+            input.style.width = "200px";
+            input.style.fontSize = "0.8rem";
+            input.title = "Click to copy m3u8 url";
+            input.onclick = () => { input.select(); document.execCommand('copy'); };
+            copyBox.appendChild(input);
+            modalBody.appendChild(copyBox);
+
+            const video = document.createElement("video");
+            video.src = finalSrc;
+            video.controls = true;
+            video.autoplay = true;
+            video.style.width = "100%";
+            video.style.height = "100%";
+            modalBody.appendChild(video);
+         });
+         return;
+      }
+
+      const video = document.createElement("video");
+      video.src = rawVideoSrc;
+      video.controls = true;
+      video.autoplay = true;
+      modalBody.appendChild(video);
       return;
   }
 
   // 2. Play standard known embeds
   if (embedUrl) {
-    modalBody.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+    const iframe = document.createElement("iframe");
+    iframe.src = embedUrl;
+    iframe.setAttribute("allow", "autoplay; fullscreen");
+    iframe.allowFullscreen = true;
+    modalBody.appendChild(iframe);
   } 
   // 3. Play direct links
   else if (rawUrl.match(/\.(mp4|webm|ogg|m3u8)$/i)) {
-    modalBody.innerHTML = `<video src="${rawUrl}" controls autoplay></video>`;
+    const video = document.createElement("video");
+    video.src = rawUrl;
+    video.controls = true;
+    video.autoplay = true;
+    modalBody.appendChild(video);
   } 
   // 4. Try guessing fallback via background fetch
   else {
     // Attempt to fetch the URL via the background script to bypass CORS restrictions
-    modalBody.innerHTML = `<div style="display:flex; height:100%; align-items:center; justify-content:center; color:white; font-family:sans-serif;">Extracting video source...</div>`;
+    modalBody.appendChild(createContainer("Extracting video source..."));
     
     browser.runtime.sendMessage({ action: "fetch_html", url: rawUrl }).then(response => {
+      modalBody.textContent = "";
       if (response && response.html) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(response.html, "text/html");
@@ -339,14 +504,28 @@ function openModal(rawUrl, embedUrl, rawVideoSrc) {
         }
         
         if (videoSrc) {
-            modalBody.innerHTML = `<video src="${videoSrc}" controls autoplay></video>`;
+            const video = document.createElement("video");
+            video.src = videoSrc;
+            video.controls = true;
+            video.autoplay = true;
+            modalBody.appendChild(video);
         } else {
             // Unsuccessful extraction: Fall back to just loading the page inside an iframe
-            modalBody.innerHTML = `<iframe src="${rawUrl}" allow="autoplay; fullscreen" allowfullscreen sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
+            const iframe = document.createElement("iframe");
+            iframe.src = rawUrl;
+            iframe.setAttribute("allow", "autoplay; fullscreen");
+            iframe.allowFullscreen = true;
+            iframe.setAttribute("sandbox", "allow-same-origin allow-scripts allow-popups allow-forms");
+            modalBody.appendChild(iframe);
         }
       } else {
         // Fallback to iframe if fetch fails
-        modalBody.innerHTML = `<iframe src="${rawUrl}" allow="autoplay; fullscreen" allowfullscreen sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
+        const iframe = document.createElement("iframe");
+        iframe.src = rawUrl;
+        iframe.setAttribute("allow", "autoplay; fullscreen");
+        iframe.allowFullscreen = true;
+        iframe.setAttribute("sandbox", "allow-same-origin allow-scripts allow-popups allow-forms");
+        modalBody.appendChild(iframe);
       }
     });
   }
@@ -354,7 +533,7 @@ function openModal(rawUrl, embedUrl, rawVideoSrc) {
 
 function closeVideoModal() {
   videoModal.classList.remove("active");
-  modalBody.innerHTML = ""; // Drop iframe to kill audio/video
+  modalBody.textContent = ""; // Drop iframe to kill audio/video
 }
 
 closeModalBtn.addEventListener("click", closeVideoModal);
