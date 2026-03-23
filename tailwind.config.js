@@ -2,6 +2,7 @@
 export default {
   content: [
     "./index.html",
+    "./dashboard-v2.html",
     "./dashboard.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
@@ -9,11 +10,17 @@ export default {
     extend: {
       colors: {
         vault: {
-          border: "#1a1a1a",
-          bg: "#050505",
-          accent: "#00f3ff",
-          muted: "#888888"
+          bg: "var(--vault-bg)",
+          text: "var(--vault-text)",
+          border: "var(--vault-border)",
+          muted: "var(--vault-muted)",
+          accent: "var(--vault-accent)",
+          accentHover: "var(--vault-accent-hover)",
+          cardBg: "var(--vault-card-bg)"
         }
+      },
+      fontFamily: {
+        sans: ["var(--vault-font)", "Segoe UI", "sans-serif"],
       }
     },
   },

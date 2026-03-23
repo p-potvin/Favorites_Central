@@ -121,6 +121,85 @@ function showVaultNotification(type, message) {
     }
 }
 /**
+ * Extract rich metadata from surrounding DOM nodes
+ */
+function extractSurroundingMetadata(baseEl, existingTitle) {
+    const meta = {
+        title: existingTitle,
+        author: "",
+        views: "",
+        likes: "",
+        date: "",
+        tags: []
+    };
+    try {
+        let container = baseEl;
+        // Go up a few levels to find a good container (e.g., a card or post wrapper)
+        for (let i = 0; i < 4; i++) {
+            if (container.parentElement && container.parentElement !== document.body) {
+                container = container.parentElement;
+            }
+        }
+        const texts = Array.from(container.querySelectorAll('*'))
+            .map(el => {
+            const text = Array.from(el.childNodes)
+                .filter(node => node.nodeType === Node.TEXT_NODE)
+                .map(node => node.textContent?.trim() || '')
+                .join(' ')
+                .trim();
+            return { el, text };
+        })
+            .filter(item => item.text.length > 0);
+        for (const { el, text } of texts) {
+            const lower = text.toLowerCase();
+            // Tags
+            if (text.startsWith('#') || lower.includes('tags:')) {
+                const foundTags = text.match(/#[\w\d]+/g);
+                if (foundTags) {
+                    foundTags.forEach(t => {
+                        if (!meta.tags.includes(t))
+                            meta.tags.push(t);
+                    });
+                }
+            }
+            // Views
+            if (/^\d+(?:[kKmMbB])?\s*(?:views?|plays?)$/i.test(lower)) {
+                if (!meta.views)
+                    meta.views = text;
+            }
+            // Likes
+            if (/^\d+(?:[kKmMbB])?\s*(?:likes?)$/i.test(lower)) {
+                if (!meta.likes)
+                    meta.likes = text;
+            }
+            // Author (commonly starts with @, or is inside a link right after a thumbnail)
+            if (text.startsWith('@') && text.length < 30) {
+                if (!meta.author)
+                    meta.author = text;
+            }
+            else if (el.tagName === 'A' && !meta.author && text.length < 30 && !text.includes(' ')) {
+                // Potential fallback author
+                // meta.author = text;
+            }
+            // Date (e.g., "2 hours ago", "Jan 12", "2024-01-01")
+            if (/(?:ago|yesterday|today|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(lower) && text.length < 20) {
+                if (!meta.date)
+                    meta.date = text;
+            }
+            // Heuristic Title (if it's a heading and we don't have a good one)
+            if (/^H[1-4]$/.test(el.tagName)) {
+                if (meta.title === "Untitled Media" || meta.title === document.title) {
+                    meta.title = text;
+                }
+            }
+        }
+    }
+    catch (err) {
+        console.warn("[VaultAuth] Failed to extract surrounding metadata", err);
+    }
+    return meta;
+}
+/**
  * Reliable Data Extraction (Runtime Validated)
  */
 function attemptExtraction(el) {
@@ -136,11 +215,22 @@ function attemptExtraction(el) {
     if (!title) {
         title = document.title;
     }
+    let extraMeta = { author: "", views: "", likes: "", date: "", tags: [] };
+    if (el) {
+        const enriched = extractSurroundingMetadata(el, title);
+        title = enriched.title;
+        extraMeta.author = enriched.author;
+        extraMeta.views = enriched.views;
+        extraMeta.likes = enriched.likes;
+        extraMeta.date = enriched.date;
+        extraMeta.tags = enriched.tags;
+    }
     const rawData = {
         title: title.trim().substring(0, 100),
         url: url,
         thumbnail: "",
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        ...extraMeta
     };
     const result = VideoDataSchema.safeParse(rawData);
     if (!result.success) {
@@ -150,6 +240,85 @@ function attemptExtraction(el) {
     return result.data;
 }
 /**
+ * Visual Indicators (Spinner & Success)
+ */
+function addSpinnerIndicator(el) {
+    if (!el)
+        return;
+    removeIndicators(el);
+    const style = window.getComputedStyle(el);
+    if (style.position === "static")
+        el.style.position = "relative";
+    const spinner = document.createElement("div");
+    spinner.className = "vault-spinner-indicator";
+    spinner.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" 
+             style="width: 24px; height: 24px; animation: spin 1s linear infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));">
+            <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
+            <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+            <path d="M12 2a10 10 0 0 1 10 10"></path>
+        </svg>
+    `;
+    Object.assign(spinner.style, {
+        position: "absolute",
+        top: "8px",
+        left: "8px",
+        zIndex: "2147483647",
+        pointerEvents: "none"
+    });
+    el.appendChild(spinner);
+}
+function removeIndicators(el) {
+    const spinner = el.querySelector(".vault-spinner-indicator");
+    if (spinner)
+        spinner.remove();
+}
+/**
+ * Capture Flow Execution
+ */
+async function startCaptureFlow() {
+    let target = lastHoveredElement;
+    if (!target) {
+        showVaultNotification("error", "No element focused");
+        return;
+    }
+    const anchor = target.closest("a");
+    const mediaContainer = target.closest("video, img, iframe, .video-player");
+    const uiTarget = anchor || mediaContainer || target;
+    if (uiTarget)
+        addSpinnerIndicator(uiTarget);
+    const data = attemptExtraction(target);
+    if (!data || !data.url) {
+        if (uiTarget)
+            removeIndicators(uiTarget);
+        showVaultNotification("error", "Could not identify link");
+        return;
+    }
+    showVaultNotification("success", "Processing capture...");
+    try {
+        const response = (await browser.runtime.sendMessage({
+            action: "process_capture",
+            data
+        }));
+        if (uiTarget)
+            removeIndicators(uiTarget);
+        if (response && response.success) {
+            showVaultNotification("success", "Saved successfully!");
+            if (uiTarget)
+                addHeartIndicator(uiTarget);
+        }
+        else {
+            showVaultNotification("error", response?.message || "Failed to capture source.");
+        }
+    }
+    catch (e) {
+        console.error("[VaultAuth] Capture flow failed:", e);
+        if (uiTarget)
+            removeIndicators(uiTarget);
+        showVaultNotification("error", "Communication error with background.");
+    }
+}
+/**
  * Message Handlers
  */
 browser.runtime.onMessage.addListener((request) => {
@@ -157,8 +326,13 @@ browser.runtime.onMessage.addListener((request) => {
         console.log("[VaultAuth] Triggering extraction from DOM...");
         return Promise.resolve(attemptExtraction(lastHoveredElement));
     }
-    if (request.action === "show_notification") {
-        showVaultNotification(request.type, request.message);
+    if (request.action === "show_notification" || request.type === "show_notification") {
+        showVaultNotification(request.notificationType || request.type, request.message);
+        return Promise.resolve(true);
+    }
+    if (request.type === "capture-video" || request.action === "capture-video") {
+        console.log("[VaultAuth] Capture video shortcut triggered");
+        startCaptureFlow();
         return Promise.resolve(true);
     }
     return undefined;

@@ -27,7 +27,11 @@ export async function getSavedVideos(): Promise<VideoData[]> {
       duration: v.duration || null,
       views: v.views || null,
       uploaded: v.uploaded || null,
-      originalIndex: v.originalIndex
+      originalIndex: v.originalIndex,
+      author: v.author || null,
+      likes: v.likes || null,
+      date: v.date || null,
+      tags: Array.isArray(v.tags) ? v.tags : []
     }));
     return validVideos;
   } catch (error) {

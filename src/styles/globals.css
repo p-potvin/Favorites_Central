@@ -3,19 +3,128 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Default: Theme 3 - Dark Gray | Gold Yellow */
+    --vault-bg: #4A5459;
+    --vault-text: #F3F4F6;
+    --vault-border: #3A4247;
+    --vault-card-bg: rgba(43, 49, 53, 0.65);
+    --vault-muted: #9CA3AF;
+    --vault-accent: #cc9b21;
+    --vault-accent-hover: #e0ac2b;
+    --vault-font: 'Segoe UI Semilight', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  [data-theme="skin-1"] { /* 1. light theme | light beige | burgundy */
+    --vault-bg: #F5F5DC;
+    --vault-text: #2D3748;
+    --vault-border: #D2D2B4;
+    --vault-card-bg: rgba(255, 255, 255, 0.6);
+    --vault-muted: #718096;
+    --vault-accent: #800020;
+    --vault-accent-hover: #990026;
+  }
+
+  [data-theme="skin-2"] { /* 2. dark theme | Solarized base02 | Solarized orange */
+    --vault-bg: #073642; 
+    --vault-text: #93a1a1; 
+    --vault-border: #002b36; 
+    --vault-card-bg: rgba(0, 43, 54, 0.7);
+    --vault-muted: #586e75; 
+    --vault-accent: #cb4b16; 
+    --vault-accent-hover: #e35a22;
+  }
+
+  [data-theme="skin-3"] { /* 3. dark theme | dark gray | gold yellow */
+    --vault-bg: #4A5459;
+    --vault-text: #F3F4F6;
+    --vault-border: #3A4247;
+    --vault-card-bg: rgba(43, 49, 53, 0.65);
+    --vault-muted: #9CA3AF;
+    --vault-accent: #cc9b21;
+    --vault-accent-hover: #e0ac2b;
+  }
+
+  [data-theme="skin-4"] { /* 4. light theme | off-white | darker gray */
+    --vault-bg: #FAF9F6;
+    --vault-text: #1A202C;
+    --vault-border: #E2E8F0;
+    --vault-card-bg: rgba(255, 255, 255, 0.8);
+    --vault-muted: #A0AEC0;
+    --vault-accent: #4A5568;
+    --vault-accent-hover: #2D3748;
+  }
+
+  [data-theme="skin-5"] { /* 5. dark theme | red | light pink */
+    --vault-bg: #3b0000; 
+    --vault-text: #FFF0F5;
+    --vault-border: #290000;
+    --vault-card-bg: rgba(0, 0, 0, 0.3);
+    --vault-muted: #D8B4E2;
+    --vault-accent: #FFB6C1;
+    --vault-accent-hover: #FFC0CB;
+  }
+
+  [data-theme="skin-6"] { /* 6. light theme | light gray | deep blue sea */
+    --vault-bg: #EAEAEA;
+    --vault-text: #1A202C;
+    --vault-border: #D1D5DB;
+    --vault-card-bg: rgba(255, 255, 255, 0.6);
+    --vault-muted: #718096;
+    --vault-accent: #006994;
+    --vault-accent-hover: #0081B4;
+  }
+
+  [data-theme="skin-7"] { /* 7. dark theme | light black | logo's color (cyan or bright green) */
+    --vault-bg: #1C1C1C;
+    --vault-text: #E2E8F0;
+    --vault-border: #2D3748;
+    --vault-card-bg: rgba(0, 0, 0, 0.5);
+    --vault-muted: #A0AEC0;
+    --vault-accent: #00F3FF; 
+    --vault-accent-hover: #33F5FF;
+  }
+
+  [data-theme="skin-8"] { /* 8. dark theme | dark purple | bright orange */
+    --vault-bg: #2B1B3D;
+    --vault-text: #F3F4F6;
+    --vault-border: #1E122C;
+    --vault-card-bg: rgba(25, 15, 38, 0.6);
+    --vault-muted: #A0AEC0;
+    --vault-accent: #FF8A00;
+    --vault-accent-hover: #FFA233;
+  }
+
+  [data-theme="skin-9"] { /* 9. light theme | pale white | bright purple */
+    --vault-bg: #FDFAFF; 
+    --vault-text: #2D3748;
+    --vault-border: #E9DEEF;
+    --vault-card-bg: rgba(255, 255, 255, 0.8);
+    --vault-muted: #718096;
+    --vault-accent: #8A2BE2;
+    --vault-accent-hover: #9B30FF;
+  }
+
   body {
-    @apply bg-vault-bg text-white font-sans antialiased;
+    @apply bg-vault-bg text-vault-text antialiased;
+    font-family: var(--vault-font);
+    transition: background-color 0.4s ease, color 0.4s ease;
   }
 }
 
+/* Glassmorphism subtle sleek components */
 .vault-card {
-  @apply border border-vault-border bg-black/50 backdrop-blur-md rounded-lg overflow-hidden transition-all duration-300;
+  @apply border border-vault-border rounded-lg overflow-hidden transition-all duration-300 backdrop-blur-md;
+  background-color: var(--vault-card-bg);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .vault-card:hover {
-  @apply border-vault-accent/50 shadow-[0_0_15px_-5px_rgba(0,243,255,0.3)];
+  @apply shadow-md;
+  border-color: var(--vault-accent);
+  transform: translateY(-2px);
 }
 
 .vault-btn {
-  @apply px-4 py-2 rounded border border-vault-border bg-transparent text-vault-muted hover:text-vault-accent hover:border-vault-accent transition-all uppercase tracking-widest text-xs font-bold;
+  @apply px-4 py-2 rounded-md border border-vault-border bg-transparent text-vault-text hover:text-vault-bg hover:bg-vault-accent transition-all uppercase tracking-wide text-xs font-semibold;
 }

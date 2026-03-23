@@ -1,13 +1,14 @@
 {
   "name": "favorites_central",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "A simple and lightweight browser extension designed to instantly save your favorite videos and links while browsing. By utilizing a quick keyboard shortcut, you can effortlessly capture the video or link directly under your mouse cursor and store it in a neatly organized dashboard.",
   "main": "content.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && node package-extension.cjs",
-    "preview": "vite preview",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "preview": "vite preview"
   },
   "repository": {
     "type": "git",
@@ -21,14 +22,19 @@
   },
   "homepage": "https://github.com/p-potvin/favorites_central#readme",
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/chrome": "^0.1.38",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/webextension-polyfill": "^0.12.5",
     "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/browser": "^4.1.0",
     "archiver": "^7.0.1",
     "autoprefixer": "^10.4.19",
+    "jsdom": "^29.0.1",
     "postcss": "^8.4.38",
     "sharp": "^0.34.5",
     "tailwindcss": "^3.4.1",
@@ -36,6 +42,7 @@
     "typescript": "^5.9.3",
     "vite": "^8.0.1",
     "vite-plugin-static-copy": "^4.0.0",
+    "vitest": "^4.1.0",
     "webextension-polyfill": "^0.12.0",
     "zod": "^4.3.6"
   },

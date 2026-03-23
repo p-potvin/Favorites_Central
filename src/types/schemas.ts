@@ -8,10 +8,14 @@ export const VideoDataSchema = z.object({
   timestamp: z.number().default(() => Date.now()),
   type: z.enum(['video', 'image', 'link']).default('link'),
   domain: z.string().default('Unknown'),
-  duration: z.string().nullable().optional(),
+  duration: z.union([z.string(), z.number()]).nullable().optional(),
   views: z.string().nullable().optional(),
   uploaded: z.string().nullable().optional(),
-  originalIndex: z.number().optional()
+  originalIndex: z.number().optional(),
+  author: z.string().nullable().optional(),
+  likes: z.string().nullable().optional(),
+  date: z.string().nullable().optional(),
+  tags: z.array(z.string()).optional()
 });
 
 export type VideoData = z.infer<typeof VideoDataSchema>;

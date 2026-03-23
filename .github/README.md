@@ -1,14 +1,17 @@
 # 🛡️ VaultWares
 **High-Security Digital Asset & Hardware Marketplace**
 
-VaultWares is a premium e-commerce platform built with a "Security-First" philosophy. It leverages a modern, type-safe stack to deliver a seamless shopping experience for high-value digital and physical assets. It also handles a vast array of projects in many different spheres. This is a general guideline to apply when coding under the VaultWares umbrella.
+VaultWares is a premium e-commerce platform built with a "Security-First" philosophy. It leverages a modern, type-safe stack to deliver a seamless shopping experience for high-value digital and physical assets. It also handles a vast array of projects in many different spheres. This is a general guideline to apply when coding under the VaultWares umbrella. Only use what applies to your application.
 
 ## 🚀 Tech Stack
-- **Frontend:** [Next.js 15](https://nextjs.org/) (App Router), [TypeScript](https://www.typescriptlang.org/)
+### This is a flexible and incomplete list
+- **Web Frontend:** [Next.js 15](https://nextjs.org/) (App Router), [TypeScript](https://www.typescriptlang.org/)
 - **Styling:** [Tailwind CSS](https://tailwindcss.com/), [Shadcn UI](https://ui.shadcn.com/)
-- **Backend/Auth:** [Supabase](https://supabase.com/) (PostgreSQL + RLS), Either [Node.js](https://nodejs.org/), [Django](https://django.com/) or [.Net](https://dotnet.microsoft.com) depending on the project
+- **Web Backend/Auth:** [Supabase](https://supabase.com/) (PostgreSQL + RLS), Either [Node.js](https://nodejs.org/), [Django](https://django.com/) or [.Net](https://dotnet.microsoft.com) depending on the project
 - **State Management:** [TanStack Query](https://tanstack.com/query) & [Zustand](https://docs.pmnd.rs/zustand)
-- **Validation:** [Zod](https://zod.dev/)
+- **Validation:** [Zod](https://zod.dev/) or native Typescript methods if Zod is causing problems
+- **Native Apps Frontend:** WinUI 3 for Windows Apps, PyQt or PySide for Python GUI
+- **Native Apps Backend:** C#, Python
 
 ## 🛠️ Getting Started
 1. **Pull the latest version:** `git fetch; git pull`
@@ -22,5 +25,4 @@ VaultWares is a premium e-commerce platform built with a "Security-First" philos
 - **Minimalist Footprint:** Zero-dependency policy for non-essential features.
 
 ## 🎨 Design Language
-- **Theme:** Industrial-Cyber (Dark Mode Only).
-- **Core Colors:** Slate-950 (BG), Emerald-400 (Accents), White/10 (Glassmorphism).
+- **View STYLE.md**

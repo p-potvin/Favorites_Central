@@ -1,8 +1,6 @@
 # 🛠 Project Context: VaultWares
-##1. Project Overview
 
-*	VaultWares is a secure, high-performance e-commerce platform specializing in premium digital assets and hardware security modules. The tech stack focuses on security, speed, and a minimalist "industrial-cyber" aesthetic.
-## 2. Core Tech Stack
+## 1. Core Tech Stack (flexible list)
 
 *    Framework: Next.js 15+ (App Router)
 
@@ -16,7 +14,7 @@
 
 *    UI Components: Radix UI primitives / Shadcn UI.
 
-## 3. Coding Standards & Patterns
+## 2. Coding Standards & Patterns
 
 *	When generating code for VaultWares, adhere to the following:
 
@@ -33,17 +31,11 @@
 
 *    Performance: Implement React Suspense for loading states and utilize Next.js Image component for all assets.
 
-## 4. Style Guide (Tailwind)
+## 3. Style Guide (Tailwind)
 
-*    Primary Palette: * Background: bg-slate-950
+**View STYLE.md**
 
-**        Accents: text-emerald-400 (Success/Action), text-amber-500 (Warning).**
-
-**        Borders: border-slate-800.**
-
-*    Button Style: Default to a "Glassmorphism" effect: bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20.
-
-## 5. Specific Constraints for Gemini
+## 4. Specific Constraints for Gemini
 
 *    Security First: Always sanitize user inputs. If writing SQL or Supabase queries, ensure Row Level Security (RLS) is considered.
 
