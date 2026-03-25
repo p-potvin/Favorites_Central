@@ -1,4 +1,9 @@
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
+
+declare global {
+  var browser: any;
+}
 
 // Map out Chrome API mocks
 global.chrome = {

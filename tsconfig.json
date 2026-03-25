@@ -9,8 +9,8 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "lib": ["ESNext", "DOM", "WebWorker"],
-    "types": ["webextension-polyfill", "chrome", "node"],
+    "types": ["webextension-polyfill", "chrome", "node", "vitest/globals"],
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*.ts", "background/**/*.ts", "*.ts"]
+  "include": ["src/**/*.ts", "background/**/*.ts", "*.ts", "vitest.setup.ts"]
 }

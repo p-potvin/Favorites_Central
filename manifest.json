@@ -41,6 +41,7 @@
   },
   "background": {
     "scripts": ["background/scripts/background.js"],
+    "service_worker": "background/scripts/background.js",
     "type": "module"
   },
   "content_scripts": [
@@ -49,7 +50,19 @@
         "<all_urls>"
       ],
       "js": [
+        "browser-polyfill.js",
         "content.js"
+      ]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "browser-polyfill.js",
+        "content.js"
+      ],
+      "matches": [
+        "<all_urls>"
       ]
     }
   ],

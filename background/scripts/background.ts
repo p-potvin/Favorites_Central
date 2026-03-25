@@ -247,6 +247,55 @@ async function openDashboard() {
 }
 
 /**
+ * Core Capture Processing Logic
+ */
+async function runCapturePipeline(data: any, tabId?: number, windowId?: number): Promise<any> {
+    try {
+        const targetUrl = data.url;
+        let finalSrc = data.url;
+
+        // Simple check if we should try deep extraction
+        if (!finalSrc.endsWith('.mp4') && !finalSrc.endsWith('.webm') && !finalSrc.endsWith('.m3u8')) {
+            const extracted = await doTabExtraction(targetUrl);
+            if (extracted && extracted.src) {
+                finalSrc = extracted.src;
+                
+                if (extracted.metadata) {
+                    if (extracted.metadata.thumbnail) data.thumbnail = extracted.metadata.thumbnail;
+                    if (extracted.metadata.duration) data.duration = extracted.metadata.duration;
+                    if (extracted.metadata.title) data.title = extracted.metadata.title;
+                    if (extracted.metadata.tags && extracted.metadata.tags.length > 0) data.tags = extracted.metadata.tags;
+                    if (extracted.metadata.author) data.author = extracted.metadata.author;
+                    if (extracted.metadata.views) data.views = extracted.metadata.views;
+                    if (extracted.metadata.likes) data.likes = extracted.metadata.likes;
+                    if (extracted.metadata.date) data.date = extracted.metadata.date;
+                }
+            }
+        }
+
+        data.rawVideoSrc = finalSrc;
+
+        // Fallback Thumbnail: Try to grab a screenshot if needed
+        if (!data.thumbnail && tabId && windowId) {
+            try {
+                const dataUrl = await browser.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 20 });
+                data.thumbnail = dataUrl;
+            } catch (captureErr) {
+                console.warn("[VaultAuth] Failed to capture visible tab for thumbnail", captureErr);
+            }
+        }
+
+        const saved = await getSavedVideos();
+        saved.push(data);
+        await saveVideos(saved);
+
+        return { success: true, data };
+    } catch (err: any) {
+        return { success: false, message: err.message };
+    }
+}
+
+/**
  * Message Dispatcher
  */
 browser.runtime.onMessage.addListener((request: any, sender: any) => {
@@ -258,55 +307,7 @@ browser.runtime.onMessage.addListener((request: any, sender: any) => {
         return true;
     }
     if (request.action === "process_capture") {
-        // Run extraction in background tab if link resembles video page, 
-        // or just add it directly.
-        return new Promise(async (resolve) => {
-            try {
-                const targetUrl = request.data.url;
-                let finalSrc = request.data.url;
-
-                // Simple check if we should try deep extraction
-                if (!finalSrc.endsWith('.mp4') && !finalSrc.endsWith('.webm') && !finalSrc.endsWith('.m3u8')) {
-                    const extracted = await doTabExtraction(targetUrl);
-                    if (extracted && extracted.src) {
-                        finalSrc = extracted.src;
-                        
-                        if (extracted.metadata) {
-                            if (extracted.metadata.thumbnail) request.data.thumbnail = extracted.metadata.thumbnail;
-                            if (extracted.metadata.duration) request.data.duration = extracted.metadata.duration;
-                            if (extracted.metadata.title) request.data.title = extracted.metadata.title;
-                            if (extracted.metadata.tags && extracted.metadata.tags.length > 0) request.data.tags = extracted.metadata.tags;
-                            if (extracted.metadata.author) request.data.author = extracted.metadata.author;
-                            if (extracted.metadata.views) request.data.views = extracted.metadata.views;
-                            if (extracted.metadata.likes) request.data.likes = extracted.metadata.likes;
-                            if (extracted.metadata.date) request.data.date = extracted.metadata.date;
-                        }
-                    }
-                }
-
-                request.data.rawVideoSrc = finalSrc;
-
-                // Fallback Thumbnail: Try to grab a screenshot of the current viewport if doing an in-page capture
-                // and the thumbnail is still empty
-                if (!request.data.thumbnail && sender?.tab?.id) {
-                    try {
-                        const dataUrl = await browser.tabs.captureVisibleTab(sender.tab.windowId, { format: "jpeg", quality: 20 });
-                        request.data.thumbnail = dataUrl;
-                    } catch (captureErr) {
-                        console.warn("[VaultAuth] Failed to capture visible tab for thumbnail", captureErr);
-                    }
-                }
-                
-                // Save to storage vault
-                const saved = await getSavedVideos();
-                saved.push(request.data);
-                await saveVideos(saved);
-
-                resolve({ success: true, data: request.data });
-            } catch (err: any) {
-                resolve({ success: false, message: err.message });
-            }
-        });
+        return runCapturePipeline(request.data, sender?.tab?.id, sender?.tab?.windowId);
     }
     return false;
 });
@@ -327,12 +328,41 @@ browser.commands.onCommand.addListener(async (command) => {
     } else if (command === "capture-video") {
         try {
             const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-            if (tabs[0]?.id) {
-                console.log("[VaultAuth] Sending shortcut command to tab", tabs[0].id);
-                await browser.tabs.sendMessage(tabs[0].id, { type: "capture-video" });
+            const activeTab = tabs[0];
+            
+            if (!activeTab?.id || !activeTab.url || activeTab.url.startsWith('chrome:')) {
+                return;
+            }
+
+            try {
+                console.log("[VaultAuth] Sending shortcut command to tab", activeTab.id);
+                const response = await browser.tabs.sendMessage(activeTab.id, { type: "capture-video" });
+                if (!response) {
+                    throw new Error("No response from content script");
+                }
+            } catch (error) {
+                // If content script is dead/missing, we notify the user to refresh instead of continuing
+                console.warn("[VaultAuth] Shortcut target unreachable:", error);
+                
+                // We use a generic notification via another method if possible, 
+                // but since the content script is dead, we can't show our custom UI.
+                // We'll use a basic browser notification or alert if allowed, 
+                // or just log it and stop as requested.
+                
+                try {
+                    // Try to inject a simple alert as a last resort since the main script is gone
+                    await browser.scripting.executeScript({
+                        target: { tabId: activeTab.id },
+                        func: () => {
+                            alert("[Favorites Central] Extension script is not active on this page. Please refresh the page to enable video capture.");
+                        }
+                    });
+                } catch (e) {
+                    console.error("[VaultAuth] Could not even inject alert:", e);
+                }
             }
         } catch (error) {
-            console.error("[VaultAuth] Error triggering capture-video shortcut:", error);
+            console.error("[VaultAuth] Fatal error in capture-video shortcut:", error);
         }
     }
 });

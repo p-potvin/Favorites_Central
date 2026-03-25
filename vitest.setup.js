@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
 // Map out Chrome API mocks
 global.chrome = {
     storage: {

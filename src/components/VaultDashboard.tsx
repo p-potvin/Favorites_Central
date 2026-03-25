@@ -4,7 +4,7 @@ import { Heart, Search, Shield, Settings, Palette, Menu, FolderTree, ArrowDownAZ
 import { cn } from '../lib/utils';
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 
-export const Dashboard: React.FC = () => {
+export const VaultDashboard: React.FC = () => {
   const [items, setItems] = useState<VideoData[]>([]);
   const [search, setSearch] = useState('');
   const [currentSkin, setCurrentSkin] = useState<number>(3);
@@ -31,9 +31,12 @@ export const Dashboard: React.FC = () => {
     if (savedSkin) {
       const skinNum = parseInt(savedSkin, 10);
       setCurrentSkin(skinNum);
+      const mode = (skinNum === 1 || skinNum === 4 || skinNum === 6 || skinNum === 9) ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', `skin-${skinNum}`);
+      document.documentElement.classList.toggle('dark', mode === 'dark');
     } else {
       document.documentElement.setAttribute('data-theme', 'skin-3');
+      document.documentElement.classList.add('dark');
     }
 
     const load = async () => {
@@ -46,7 +49,9 @@ export const Dashboard: React.FC = () => {
   const cycleTheme = () => {
     const nextSkin = currentSkin === 9 ? 1 : currentSkin + 1;
     setCurrentSkin(nextSkin);
+    const mode = (nextSkin === 1 || nextSkin === 4 || nextSkin === 6 || nextSkin === 9) ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', `skin-${nextSkin}`);
+    document.documentElement.classList.toggle('dark', mode === 'dark');
     localStorage.setItem('vault-skin', nextSkin.toString());
   };
 
@@ -133,7 +138,7 @@ export const Dashboard: React.FC = () => {
             onClick={() => setSidebarOpen(!isSidebarOpen)}
             className="vault-btn p-1.5 h-8 w-8 flex items-center justify-center border-none hover:bg-vault-cardBg"
           >
-            <Menu size={20} />
+            <Shield size={20} className="text-vault-accent" />
           </button>
           
           <div className="flex items-center gap-3">
@@ -142,10 +147,10 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="leading-tight">
               <h1 className="text-xl font-bold tracking-tight flex items-center gap-1">
-                Vault<span className="text-vault-accent font-light">Wares</span>
+                Vault<span className="text-vault-accent font-light">Central</span>
               </h1>
               <p className="text-[9px] text-vault-muted font-medium tracking-wider uppercase">
-                v1.0.0-rc // Vault Central
+                Secure Media Vault // <a href="https://vaultwares.com" target="_blank" rel="noreferrer" className="hover:text-vault-accent underline transition-colors">VaultWares.com</a>
               </p>
             </div>
           </div>
@@ -172,7 +177,7 @@ export const Dashboard: React.FC = () => {
           </button>
 
           <button className="vault-btn flex items-center justify-center p-1.5 rounded-full h-8 w-8 group">
-            <Settings size={16} className="group-hover:rotate-45 transition-transform duration-300" />
+            <Shield size={16} className="text-vault-accent group-hover:scale-110 transition-transform duration-300" />
           </button>
         </div>
       </header>
@@ -189,7 +194,7 @@ export const Dashboard: React.FC = () => {
             {/* View Mode */}
             <div>
               <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
-                <LayoutTemplate size={14} /> View Mode
+                <Shield size={14} className="text-vault-accent" /> View Mode
               </label>
               <input 
                 type="range" 
@@ -208,7 +213,7 @@ export const Dashboard: React.FC = () => {
             {/* Grouping */}
             <div>
               <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
-                <FolderTree size={14} /> Group By
+                <Shield size={14} className="text-vault-accent" /> Group By
               </label>
               <select 
                 value={groupBy}
@@ -223,7 +228,7 @@ export const Dashboard: React.FC = () => {
             {/* Sorting */}
             <div>
                <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
-                <ArrowDownAZ size={14} /> Sort By
+                <Shield size={14} className="text-vault-accent" /> Sort By
               </label>
               <select 
                 value={sortBy}

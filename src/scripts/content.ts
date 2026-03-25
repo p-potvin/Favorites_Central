@@ -381,9 +381,18 @@ if (document.body) {
     highlightVaultItems();
 } else {
     window.addEventListener("DOMContentLoaded", () => {
-        if(document.body) {
-          observer.observe(document.body, { childList: true, subtree: true });
-          highlightVaultItems();
+        if (document.body) {
+            observer.observe(document.body, { childList: true, subtree: true });
+            highlightVaultItems();
         }
     });
 }
+
+// Window message listener for cross-context or test triggering
+window.addEventListener("message", (event) => {
+    if (event.source !== window) return;
+    if (event.data && event.data.action === "capture-video") {
+        console.log("[VaultAuth] Capture video triggered via window message");
+        startCaptureFlow();
+    }
+});

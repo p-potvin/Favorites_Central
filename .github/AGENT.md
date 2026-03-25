@@ -38,3 +38,13 @@ When clicking on an item, a video player should pop open *(centered, not fullscr
 ### Notifications
 
 When saving an item, it preemptively adds an svg icon *(filled in and with a large contrasting stroke)* inside the HTML node *(around <20% of the item's width, top left corner, should never disturb the layout in place).* While waiting for the hidden tab's response it will display a visual cue that something is processing. Once it gets the response from the hidden tab, it removes the spinner and shows a green toast notification if the response if positive (the video link was saved). If the response is negative, it captures the closest link with a screenshot/snapshot of the page. If there are no links of any kind, it removes the icon and asks the user to try another item.
+
+
+## Future Functionalities and Improvements
+- Implement a way to edit the metadata of an item and to add custom tags/labels/playlists to it.
+- Implement a PIN system that locks the dasboard behind a 4-6 number code after a certain period of inactivity or when opening the dashboard for the first time in a session. This is optional and Off by default and can be turned on/off in the settings. It auto connects when the correct PIN is entered.
+- Implement a way to export and import your vault.
+- Implement a way to sync your vault across devices.
+- Implement a way to save other types of media such as music, images, torrents, bookmarks and more.
+- Implement a way to automatically organize your vault based on playlists, labels,tags, type of media
+

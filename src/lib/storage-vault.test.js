@@ -3,11 +3,11 @@ import { getSavedVideos, saveVideos } from './storage-vault';
 describe('Storage Vault', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        global.chrome.storage.local.get.mockImplementation((key, cb) => {
+        global.chrome.storage.local.get.mockImplementation((_key) => {
             // browser.storage.local.get returns a promise under polyfill
             return Promise.resolve({ savedVideos: [{ url: 'http://existing.com', title: 'Existing' }] });
         });
-        global.chrome.storage.local.set.mockImplementation((data, cb) => {
+        global.chrome.storage.local.set.mockImplementation((_data) => {
             return Promise.resolve();
         });
     });

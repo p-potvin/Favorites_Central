@@ -1,5 +1,4 @@
-/// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
@@ -29,15 +28,13 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 background: resolve(__dirname, 'background/scripts/background.ts'),
-                content: resolve(__dirname, 'content.js'),
+                content: resolve(__dirname, 'src/scripts/content.ts'),
                 dashboard: resolve(__dirname, 'dashboard-v2.html'),
             },
             output: {
                 entryFileNames: (chunkInfo) => {
                     if (chunkInfo.name === 'background')
                         return 'background/scripts/[name].js';
-                    if (chunkInfo.name === 'content')
-                        return '[name].js';
                     return '[name].js';
                 },
                 chunkFileNames: '[name].js',
