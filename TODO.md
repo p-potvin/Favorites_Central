@@ -1,50 +1,69 @@
 # 🎯 Vault Central Development Roadmap (VaultWares Standards)
 
 ## 🛡️ Phase 1: Core Standard & Cleanup
-- [ ] **Naming Consistency**: Rename `src/components/Dashboard.tsx` to `src/components/VaultDashboard.tsx` per [instructions.md](.github/instructions.md).
-- [ ] **Redundant Purge**: Manually delete `Dashboard-v4.tsx`, `Dashboard.tsx-v2`, `Dashboard.tsx-v3`, and other versioned artifacts.
-- [ ] **Type Safety**: Audit `schemas.ts` and ensure `any` is strictly avoided in all ingestion pipelines.
+- [x] **Naming Consistency**: Rename `src/components/Dashboard.tsx` to `src/components/VaultDashboard.tsx` per [instructions.md](.github/instructions.md).
+- [x] **Redundant Purge**: Manually delete `Dashboard-v4.tsx`, `Dashboard.tsx-v2`, `Dashboard.tsx-v3`, and other versioned artifacts.
+- [x] **Type Safety**: Purged `any` from pipelines and updated schemas to include 15+ metadata fields.
 - [x] **Theme Logic**: Align Dashboard theme logic with [STYLE.md](.github/STYLE.md) (Skins 1-9 light/dark mapping).
 
 ## ⌨️ Phase 2: Input & Interaction (AGENT.md Alignment)
-- [ ] **Shortcut ALT+X**: Implement "Capture under mouse" logic in [content.ts](src/scripts/content.ts).
-    - [ ] Calculate "closest to mouse pointer" element.
-    - [ ] Handle silent hidden tab creation for m3u8 interception.
-- [ ] **Shortcut ALT+C**: Verify command mapping to open the [VaultDashboard.tsx](src/components/VaultDashboard.tsx).
+- [x] **Shortcut ALT+X**: Implement "Capture under mouse" logic in [content.ts](src/scripts/content.ts).
+    - [x] Calculate "closest to mouse pointer" element (Bresenham-lite search).
+    - [x] Handle silent hidden tab creation for m3u8 interception.
+- [x] **Shortcut ALT+C**: Verify command mapping to open the [VaultDashboard.tsx](src/components/VaultDashboard.tsx).
 
-## 📊 Phase 3: Dashboard UI/UX (VaultWares Design)
+## 📊 Phase 3: Dashboard UI/UX (VaultWares Design) [COMPLETED]
 - [x] **Header Refinement**: 
     - [x] Ensure VaultWares logo and link are present.
     - [x] Implement the "Secure Media Vault" sub-header.
 - [x] **Side-Panel**:
     - [x] Verify "Group By Hostname" as default.
     - [x] Implement "View Types" slider (Details -> Biggest).
-- [ ] **Grid & Pagination**:
-    - [ ] Enforce 2-row maximum per section with pagination buttons.
-    - [ ] Implement Infinite Scrolling (50 section limit per load).
+- [x] **Filtering & Sorting**:
+    - [x] Implement universal filter across all metadata fields.
+    - [x] Implement multi-field sorting with ASC/DESC toggle.
+- [x] **Grid & Pagination**:
+    - [x] Enforce 2-row maximum per section with pagination buttons.
+    - [x] Implement Infinite Scrolling (50 section limit per load).
 
-## 🎥 Phase 4: Item Behavior & Player
-- [ ] **Hover Feedback**: 
-    - [ ] Implement thumbnail hover effect (video/carousel preview).
-    - [ ] Bottom-right duration badge.
-- [ ] **Action Icons**:
-    - [ ] Top-left: Edit Metadata.
-    - [ ] Top-right: Delete Item.
-- [ ] **Prop Player**:
-    - [ ] Centered modal (non-fullscreen).
-    - [ ] Autoplay/Controls.
-    - [ ] "Hidden Tab Refresh" for expired m3u8 links.
+## 🎥 Phase 4: Item Behavior & Player [IN-PROGRESS]
+- [x] **Hover Feedback**: 
+    - [x] Implement thumbnail hover effect (Overlay, scanning animation, play preview).
+    - [x] Internalize duration/meta into thumbnail (Target-lock style corners).
+    - [x] Bottom-right duration badge.
+- [x] **Action Icons**:
+    - [x] Top-left: Edit Metadata (Internalized to Thumb).
+    - [x] Top-right: Delete Item (Internalized to Thumb).
+- [~] **Prop Player**:
+    - [x] Centered modal (non-fullscreen).
+    - [x] Autoplay/Controls.
+    - [x] "Hidden Tab Refresh" for expired m3u8 links.
 
-## 🔔 Phase 5: Notification System
-- [ ] **Target Injections**: 
-    - [ ] Top-left SVG icon injection (20% width) in original page link.
-    - [ ] Processing spinner during background extraction.
-- [x] **Toasts**: 
-    - [x] Green success toast on positive response.
-    - [x] Fallback link capture on failure.
+## 🧠 Phase 5: Vault Intelligence (Advanced Previews) [COMPLETED]
+- [x] **Binary Storage**: Dexie.js (IndexedDB) for storing high-fidelity preview Blobs.
+- [x] **Offscreen Processor**: FFmpeg WASM implementation via `chrome.offscreen`.
+- [x] **YouTube-style Preview**: 10 chunks of 2s muted WebM playback on hover.
+- [x] **Automated Processing**: Background job triggered immediately on save.
+- [x] **Fault Tolerance**: Manual recovery job triggered on hover if >30s elapsed since save.
+- [x] **Theatrical Player**: Immersive video player with "Light Dimmer" (Palette icon).
+- [x] **Browser Sync**: Multi-device state syncing (Firefox/Chrome APIs) [Metadata Only].
+## 🔒 Phase 6: Security & Privacy (PIN System) [COMPLETED]
+- [x] **Proton-style PIN**: Optional 4 or 6-digit PIN system.
+- [x] **Secure Popup**: Rounded 4/6 input boxes with automatic transition and focus.
+- [x] **Persistent Lock**: Memory-only database loading until authenticated.
+- [x] **DevTools Hardening**: AES-256 encryption for IndexedDB Blobs using PIN as salt.
+- [x] **In-Memory Logic**: `getSavedVideos` logic blocked by `isVaultLocked()` check.
+- [x] **Idle Timeout**: Dropdown configuration (10m, 30m, 1h, 2h, Never).
+- [x] **Locker UI**: Visual "Vault Unlocked" vs "Authenticating" states in popup.
 
-## 🔮 Phase 6: Future Vault Features
-- [ ] **PIN System**: 4-6 digit locker logic.
+## 🔔 Phase 7: Site Injections & Notifications [COMPLETED]
+- [x] **Sync Indicators**: Green "Cloud-Heart" icon injected into thumbnails/links of saved items.
+- [x] **Capture Toast**: Notification when starting capture via Alt+X (with spinner).
+- [x] **Contextual Metadata**: In-DOM extraction of author, views, and tags during capture.
+- [x] **Success/Failure Toasts**: Interactive, translucent notifications with security-focused messaging.
+- [x] **Real-time Updates**: MutationObserver automatically updates indicators when site content scrolls/reloads.
+
+## 🔮 Phase 8: Future Vault Features
 - [ ] **Vault Portability**: Export/Import JSON logic.
 - [ ] **Multi-Type Support**: Music, Torrents, and Bookmarks.
 

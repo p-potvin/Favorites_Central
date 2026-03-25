@@ -14,19 +14,17 @@ test.describe('Video Capture E2E', () => {
         const hasVideo = await videoLink.isVisible();
         const targetLink = hasVideo ? videoLink : page.locator('a').first();
         
-        console.log(\"Hovering over \...\");
+        console.log("Hovering over...");
         await targetLink.hover();
 
-        // 3. Trigger capture via postMessage
-        console.log('Triggering capture-video command via postMessage...');
-        await page.evaluate(() => {
-            window.postMessage({ type: 'FAVORITES_CAPTURE_TRIGGER', command: 'capture-video' }, '*');
-        });
+        // 3. Trigger capture via Alt+X shortcut simulation
+        console.log('Simulating Alt+X keyboard shortcut...');
+        await page.keyboard.press('Alt+X');
 
         // 4. Verify visual feedback (Wait for [VAULT] notification)
         console.log('Waiting for [VAULT] notification...');
         try {
-            const notification = page.locator('div:contains(\"[VAULT]\")').first();
+            const notification = page.locator('div:has-text("[VAULT]")').first();
             await expect(notification).toBeVisible({ timeout: 15000 });
         } catch (e) {
             console.warn('UI notification not found, proceeding to storage check...');
@@ -36,21 +34,21 @@ test.describe('Video Capture E2E', () => {
         console.log('Polling storage for results (waiting up to 30s)...');
         let saved = false;
         for (let i = 0; i < 30; i++) {
-            const storageData = await page.evaluate(async () => {
-                return new Promise((resolve) => {
+            const storageData = (await page.evaluate(async () => {
+                return new Promise<any[]>((resolve) => {
                     // Content scripts can access chrome.storage.local
-                    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                        chrome.storage.local.get('savedVideos', (data) => {
+                    if (typeof chrome !== 'undefined' && chrome.storage && (chrome.storage as any).local) {
+                        (chrome.storage as any).local.get('savedVideos', (data: any) => {
                             resolve(data.savedVideos || []);
                         });
                     } else {
                         resolve([]);
                     }
                 });
-            }) as any[];
+            })) as any[];
             
             if (storageData.length > 0) {
-                console.log(\"Found \ items in storage!\");
+                console.log(`Found ${storageData.length} items in storage!`);
                 saved = true;
                 break;
             }

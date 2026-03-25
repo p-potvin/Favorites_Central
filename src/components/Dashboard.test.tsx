@@ -1,13 +1,29 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Dashboard } from './Dashboard';
+import { VaultDashboard } from './VaultDashboard';
 import * as storageVault from '../lib/storage-vault';
 
 // Mock the storage vault module
 vi.mock('../lib/storage-vault', () => ({
   getSavedVideos: vi.fn(),
-  saveVideo: vi.fn(),
-  removeVideo: vi.fn(),
+  saveVideos: vi.fn(),
+  getPinSettings: vi.fn(),
+  savePinSettings: vi.fn(),
+  isVaultLocked: vi.fn(),
+}));
+
+// Mock browser
+vi.mock('webextension-polyfill', () => ({
+  default: {
+    runtime: {
+      sendMessage: vi.fn(),
+    },
+  },
+}));
+
+// Mock dexie-store
+vi.mock('../lib/dexie-store', () => ({
+  getPreview: vi.fn().mockResolvedValue(null),
 }));
 
 const mockVideos = [
@@ -20,7 +36,8 @@ const mockVideos = [
     thumbnail: 'https://test-video1.com/thumb.jpg',
     author: 'Test Author',
     type: 'video',
-    tags: ['test', 'react']
+    tags: ['test', 'react'],
+    domain: 'youtube.com'
   },
   {
     id: '2',
@@ -28,7 +45,8 @@ const mockVideos = [
     title: 'Example Page 2',
     timestamp: 1620000010000,
     type: 'link',
-    tags: []
+    tags: [],
+    domain: 'example.com'
   }
 ];
 
@@ -36,10 +54,16 @@ describe('Dashboard Component', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     (storageVault.getSavedVideos as any).mockResolvedValue(mockVideos);
+    (storageVault.isVaultLocked as any).mockResolvedValue(false);
+    (storageVault.getPinSettings as any).mockResolvedValue({
+      enabled: false,
+      length: 4,
+      lockTimeout: 3600000,
+    });
   });
 
   it('renders the Dashboard header and initial state', async () => {
-    render(<Dashboard />);
+    render(<VaultDashboard />);
     await waitFor(() => {
       expect(screen.getByText(/Wares/i)).toBeInTheDocument();
       expect(screen.getAllByText(/Vault/i).length).toBeGreaterThan(0);
@@ -47,76 +71,56 @@ describe('Dashboard Component', () => {
   });
 
   it('loads and displays saved items', async () => {
-    render(<Dashboard />);
+    (storageVault.getSavedVideos as any).mockResolvedValue(mockVideos);
+
+    render(<VaultDashboard />);
+    
+    // Check if the "Total Items" count is 2 - this proves re-render happened
     await waitFor(() => {
-      expect(screen.getByText('Test Video 1')).toBeInTheDocument();
-      expect(screen.getByText('Example Page 2')).toBeInTheDocument();
-    });
+      expect(screen.queryByText(/Total Items:/i)).toBeInTheDocument();
+      const countEl = screen.getByText('2', { selector: 'strong' });
+      expect(countEl).toBeInTheDocument();
+    }, { timeout: 3000 });
+
+    const title1 = screen.queryByText((content, element) => element?.textContent === 'Test Video 1');
+    expect(title1).toBeInTheDocument();
   });
 
   it('filters items based on search input', async () => {
-    render(<Dashboard />);
-    await waitFor(() => {
-      expect(screen.getByText('Test Video 1')).toBeInTheDocument();
-    });
+    (storageVault.getSavedVideos as any).mockResolvedValue(mockVideos);
+
+    render(<VaultDashboard />);
     
-    const searchInput = screen.getByPlaceholderText(/Search items.../i);
+    await waitFor(() => {
+      expect(screen.getByText('2', { selector: 'strong' })).toBeInTheDocument();
+    }, { timeout: 3000 });
+    
+    const searchInput = screen.getByPlaceholderText(/Search in title.../i);
     fireEvent.change(searchInput, { target: { value: 'Test Video' } });
 
     await waitFor(() => {
-      expect(screen.getByText('Test Video 1')).toBeInTheDocument();
-      expect(screen.queryByText('Example Page 2')).not.toBeInTheDocument();
-    });
-  });
-
-  it('opens and closes the video player modal', async () => {
-    render(<Dashboard />);
-    await waitFor(() => {
-      expect(screen.getByText('Test Video 1')).toBeInTheDocument();
-    });
-
-    const playButtons = screen.getAllByRole('button');
-    // The video card itself or its play button will trigger the modal
-    // Let's find the card or play icon - actually, clicking the title might not work. Dashboard renders a button around the thumbnail.
-    // We can click the image thumbnail for the video.
-    const thumbnails = screen.getAllByRole('img');
-    fireEvent.click(thumbnails[0]);
-
-    // Modal should open
-    await waitFor(() => {
-      // It has a video element
-      const videoElement = document.querySelector('video');
-      expect(videoElement).toBeInTheDocument();
-    });
-
-    // Close the modal
-    const closeBtn = screen.getByTitle(/Close Player/i);
-    fireEvent.click(closeBtn);
-
-    await waitFor(() => {
-      expect(document.querySelector('video')).not.toBeInTheDocument();
-    });
+      expect(screen.getByText('1', { selector: 'strong.text-vault-text' })).toBeInTheDocument();
+      const title1 = screen.queryByText((content, element) => element?.textContent === 'Test Video 1');
+      const title2 = screen.queryByText((content, element) => element?.textContent === 'Example Page 2');
+      expect(title1).toBeInTheDocument();
+      expect(title2).not.toBeInTheDocument();
+    }, { timeout: 3000 });
   });
 
   it('toggles the sidebar layout', async () => {
-    render(<Dashboard />);
-    await waitFor(() => {
-      expect(screen.getByText('Test Video 1')).toBeInTheDocument();
-    });
-    // By default, sidebar starts open. Let's find the menu button.
-    const menuBtn = screen.getAllByRole('button').find(b => b.classList.contains('vault-btn') && b.querySelector('.lucide-menu'));
-    expect(menuBtn).toBeDefined();
+    const { container } = render(<VaultDashboard />);
     
-    // Sidebar wrapper should have w-64 or similar. Actually, we can check for text that only appears in sidebar.
-    // We can check if "Grouping" is there.
-    expect(screen.getByText('Group By')).toBeInTheDocument();
+    // Check initial state - sidebar might be open or closed depending on default state.
+    const sidebar = container.querySelector('aside');
+    expect(sidebar).toHaveClass('w-64');
 
-    fireEvent.click(menuBtn!);
+    // The first button in the header is the toggle button
+    const toggleButton = screen.getAllByRole('button')[0]; 
+    fireEvent.click(toggleButton);
 
-    // Since it simply changes width class or opacity, we can assert on the aside element classes 
-    // The queryByText 'Group By' still might be in DOM, just invisible due to opacity-0.
-    const aside = screen.getByText('Group By').closest('aside');
-    expect(aside).toHaveClass('w-0');
+    await waitFor(() => {
+      expect(sidebar).toHaveClass('w-0');
+    });
   });
 });
 

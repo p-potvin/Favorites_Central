@@ -26,7 +26,7 @@ All of this is saved in a persistent way using your local storage and comes bund
 
 1. The dashboard offers a variety of pre-made skins as well as a way to upload your own CSS. 
 2. The dashboard's header comes equipped with: **The extension's logo, author and version and a small link to VaultWares.com on the left, a light/night mode switch, a gear icon to show the extension's settings and a search bar on the left.** 
-3. Then there is a collapsible side-panel on the side *(Default: Left)* with: **a 'group by' dropdown (*(Default: Hostname)* to organize the items into sections that are also collapsible, filters and sort options based on our captured metadata fields and view types.** The view types are represented by a slider similar to the one in *Windows 11/10 Explorer.exe* and offers these views: **Biggest/Large/Medium/Small/Details**.
+3. Then there is a collapsible side-panel on the side *(Default: Left)* with: **a 'group by' dropdown *(Default: Hostname)* to organize the items into sections that are also collapsible, filters and sort options based on our captured metadata fields and view types.** The view types are represented by a slider similar to the one in *Windows 11/10 Explorer.exe* and offers these views: **Biggest/Large/Medium/Small/Details**.
 4. The sections are arranged in a flex grid with a maximum number of rows *(Default: 2)* after which pagination is added.  The number of section is limited *(Default: 50)* but the dashboard is equipped with infinite scrolling. It is possible to click on a section to open a new view to display only the section's items with a back button at the top.
 
 ### Item Look and Behavior

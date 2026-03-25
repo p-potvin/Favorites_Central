@@ -1,23 +1,19 @@
 import browser from 'webextension-polyfill';
-import { VideoData, VideoDataSchema } from '../types/schemas';
-
+import { VideoDataSchema } from '../types/schemas';
 /**
  * [VaultAuth] Content Script (Modernized)
  * --------------------------------------
  * Handles DOM-based video detection, visual status indicators (Hearts),
  * and user notifications with a security-first approach.
  */
-
-let lastHoveredElement: HTMLElement | null = null;
-let mutationTimeout: ReturnType<typeof setTimeout> | null = null;
-
+let lastHoveredElement = null;
+let mutationTimeout = null;
 // Track the element currently under the mouse
-document.addEventListener("mousemove", (e: MouseEvent) => {
-    lastHoveredElement = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+document.addEventListener("mousemove", (e) => {
+    lastHoveredElement = document.elementFromPoint(e.clientX, e.clientY);
 }, { passive: true });
-
 // Listen for Alt+X shortcut globally
-document.addEventListener("keydown", (e: KeyboardEvent) => {
+document.addEventListener("keydown", (e) => {
     if (e.altKey && (e.key === "x" || e.key === "X" || e.code === "KeyX")) {
         console.log("[VaultAuth] Alt+X shortcut detected");
         e.preventDefault();
@@ -25,22 +21,19 @@ document.addEventListener("keydown", (e: KeyboardEvent) => {
         startCaptureFlow();
     }
 }, { capture: true });
-
 /**
  * Visual Feedback: Permanent Heart Indicator
  */
-function addHeartIndicator(el: HTMLElement) {
-    if (!el || el.querySelector(".vault-heart-indicator")) return;
-
+function addHeartIndicator(el) {
+    if (!el || el.querySelector(".vault-heart-indicator"))
+        return;
     // Ensure relative positioning for absolute child
     const style = window.getComputedStyle(el);
     if (style.position === "static") {
         el.style.position = "relative";
     }
-
     const heart = document.createElement("div");
     heart.className = "vault-heart-indicator";
-    
     // UI/UX Sync Icon (Cloud Check)
     heart.innerHTML = `
         <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" 
@@ -49,7 +42,6 @@ function addHeartIndicator(el: HTMLElement) {
             <path d="M17.5 19l2 2 4-4" stroke="white" stroke-width="3"></path>
         </svg>
     `;
-
     Object.assign(heart.style, {
         position: "absolute",
         top: "4px",
@@ -58,67 +50,58 @@ function addHeartIndicator(el: HTMLElement) {
         pointerEvents: "none",
         transition: "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
     });
-
     el.appendChild(heart);
 }
-
 /**
  * Scans the page for saved videos and marks them
  */
 async function highlightVaultItems() {
     try {
         const storage = await browser.storage.local.get("savedVideos");
-        const savedVideos = (storage.savedVideos || []) as VideoData[];
-        
-        if (savedVideos.length === 0) return;
-
-        const savedUrls = new Set(savedVideos.map((v: VideoData) => v.url));
+        const savedVideos = (storage.savedVideos || []);
+        if (savedVideos.length === 0)
+            return;
+        const savedUrls = new Set(savedVideos.map((v) => v.url));
         const links = document.querySelectorAll("a");
-
         links.forEach(link => {
             if (savedUrls.has(link.href)) {
-                addHeartIndicator(link as HTMLElement);
+                addHeartIndicator(link);
             }
         });
-    } catch (e) {
+    }
+    catch (e) {
         console.error("[VaultAuth] Highlight failure:", e);
     }
 }
-
 /**
  * Industrial Notification System (Modernized)
  */
-function showVaultNotification(type: 'success' | 'removed' | 'error' | 'processing', message: string) {
+function showVaultNotification(type, message) {
     const existing = document.getElementById("vault-notification-portal");
-    if (existing) existing.remove();
-
+    if (existing)
+        existing.remove();
     const el = document.createElement("div");
     el.id = "vault-notification-portal";
-    
     // Icon Mapping
-    const iconMap: Record<string, string> = {
+    const iconMap = {
         success: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 18px; height: 18px; color: #10b981; margin-right: 8px;"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
         removed: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 18px; height: 18px; color: #f97316; margin-right: 8px;"><path d="M19 12H5"></path></svg>`,
         error: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 18px; height: 18px; color: #ef4444; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`,
         processing: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 18px; height: 18px; color: #3b82f6; margin-right: 8px; animation: vault-spin 1s linear infinite;"><style>@keyframes vault-spin { 100% { transform: rotate(360deg); } }</style><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>`
     };
-
     el.innerHTML = `
         <div style="display: flex; align-items: center;">
             ${iconMap[type] || iconMap.error}
             <span style="flex: 1;">${message.toUpperCase()}</span>
         </div>
     `;
-
-    const themeMap: Record<string, { bg: string, border: string }> = {
+    const themeMap = {
         success: { bg: "#10b981", border: "#059669" },
         removed: { bg: "#f97316", border: "#ea580c" },
         error: { bg: "#ef4444", border: "#dc2626" },
         processing: { bg: "#3b82f6", border: "#2563eb" }
     };
-
     const theme = themeMap[type] || themeMap.error;
-
     Object.assign(el.style, {
         position: "fixed",
         bottom: "24px",
@@ -140,14 +123,11 @@ function showVaultNotification(type: 'success' | 'removed' | 'error' | 'processi
         pointerEvents: "none",
         backdropFilter: "blur(12px)"
     });
-
     document.body.appendChild(el);
-
     requestAnimationFrame(() => {
         el.style.opacity = "1";
         el.style.transform = "translateX(0)";
     });
-
     // Auto-remove unless it's processing
     if (type !== 'processing') {
         setTimeout(() => {
@@ -156,31 +136,30 @@ function showVaultNotification(type: 'success' | 'removed' | 'error' | 'processi
             setTimeout(() => el.remove(), 500);
         }, 4000);
     }
-
     // Contextual indicator updates
     if (lastHoveredElement) {
-        const target = lastHoveredElement.closest("a") as HTMLElement || lastHoveredElement;
-        if (type === 'success') addHeartIndicator(target);
+        const target = lastHoveredElement.closest("a") || lastHoveredElement;
+        if (type === 'success')
+            addHeartIndicator(target);
         if (type === 'removed') {
             const heart = target.querySelector(".vault-heart-indicator");
-            if (heart) heart.remove();
+            if (heart)
+                heart.remove();
         }
     }
 }
-
 /**
  * Extract rich metadata from surrounding DOM nodes
  */
-function extractSurroundingMetadata(baseEl: HTMLElement, existingTitle: string) {
+function extractSurroundingMetadata(baseEl, existingTitle) {
     const meta = {
         title: existingTitle,
         author: "",
         views: "",
         likes: "",
         date: "",
-        tags: [] as string[]
+        tags: []
     };
-
     try {
         let container = baseEl;
         // Go up a few levels to find a good container (e.g., a card or post wrapper)
@@ -189,54 +168,52 @@ function extractSurroundingMetadata(baseEl: HTMLElement, existingTitle: string) 
                 container = container.parentElement;
             }
         }
-
         const texts = Array.from(container.querySelectorAll('*'))
             .map(el => {
-                const text = Array.from(el.childNodes)
-                    .filter(node => node.nodeType === Node.TEXT_NODE)
-                    .map(node => node.textContent?.trim() || '')
-                    .join(' ')
-                    .trim();
-                return { el, text };
-            })
+            const text = Array.from(el.childNodes)
+                .filter(node => node.nodeType === Node.TEXT_NODE)
+                .map(node => node.textContent?.trim() || '')
+                .join(' ')
+                .trim();
+            return { el, text };
+        })
             .filter(item => item.text.length > 0);
-
         for (const { el, text } of texts) {
             const lower = text.toLowerCase();
-
             // Tags
             if (text.startsWith('#') || lower.includes('tags:')) {
                 const foundTags = text.match(/#[\w\d]+/g);
                 if (foundTags) {
                     foundTags.forEach(t => {
-                        if (!meta.tags.includes(t)) meta.tags.push(t);
+                        if (!meta.tags.includes(t))
+                            meta.tags.push(t);
                     });
                 }
             }
-            
             // Views
             if (/^\d+(?:[kKmMbB])?\s*(?:views?|plays?)$/i.test(lower)) {
-                if (!meta.views) meta.views = text;
+                if (!meta.views)
+                    meta.views = text;
             }
-
             // Likes
             if (/^\d+(?:[kKmMbB])?\s*(?:likes?)$/i.test(lower)) {
-                if (!meta.likes) meta.likes = text;
+                if (!meta.likes)
+                    meta.likes = text;
             }
-
             // Author (commonly starts with @, or is inside a link right after a thumbnail)
             if (text.startsWith('@') && text.length < 30) {
-                if (!meta.author) meta.author = text;
-            } else if (el.tagName === 'A' && !meta.author && text.length < 30 && !text.includes(' ')) {
+                if (!meta.author)
+                    meta.author = text;
+            }
+            else if (el.tagName === 'A' && !meta.author && text.length < 30 && !text.includes(' ')) {
                 // Potential fallback author
                 // meta.author = text;
             }
-
             // Date (e.g., "2 hours ago", "Jan 12", "2024-01-01")
             if (/(?:ago|yesterday|today|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(lower) && text.length < 20) {
-                if (!meta.date) meta.date = text;
+                if (!meta.date)
+                    meta.date = text;
             }
-            
             // Heuristic Title (if it's a heading and we don't have a good one)
             if (/^H[1-4]$/.test(el.tagName)) {
                 if (meta.title === "Untitled Media" || meta.title === document.title) {
@@ -244,44 +221,38 @@ function extractSurroundingMetadata(baseEl: HTMLElement, existingTitle: string) 
                 }
             }
         }
-    } catch (err) {
+    }
+    catch (err) {
         console.warn("[VaultAuth] Failed to extract surrounding metadata", err);
     }
-
     return meta;
 }
-
 /**
  * Reliable Data Extraction (Runtime Validated)
  */
-function attemptExtraction(el: HTMLElement | null): VideoData | Partial<VideoData> {
+function attemptExtraction(el) {
     // Priority 1: Direct link hover
-    let link = el?.closest("a") as HTMLAnchorElement | null;
-    
+    let link = el?.closest("a");
     // Priority 2: Bresenham-lite search for nearby links if not on one
     if (!link && el) {
         const rect = el.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
-        
         // Scan a small 40px radius around the element center for anchors
         const points = [
-            [0,0], [15,0], [-15,0], [0,15], [0,-15],
-            [30,0], [-30,0], [0,30], [0,-30]
+            [0, 0], [15, 0], [-15, 0], [0, 15], [0, -15],
+            [30, 0], [-30, 0], [0, 30], [0, -30]
         ];
-
         for (const [ox, oy] of points) {
             const potential = document.elementFromPoint(centerX + ox, centerY + oy);
             const foundLink = potential?.closest("a");
             if (foundLink) {
-                link = foundLink as HTMLAnchorElement;
+                link = foundLink;
                 break;
             }
         }
     }
-
     const url = link?.href || window.location.href;
-    
     let title = "Untitled Media";
     if (el) {
         title = el.getAttribute("title") || el.getAttribute("aria-label") || el.getAttribute("alt") || "";
@@ -292,8 +263,7 @@ function attemptExtraction(el: HTMLElement | null): VideoData | Partial<VideoDat
     if (!title) {
         title = document.title;
     }
-
-    let extraMeta = { author: "", views: "", likes: "", date: "", tags: [] as string[] };
+    let extraMeta = { author: "", views: "", likes: "", date: "", tags: [] };
     if (el) {
         const enriched = extractSurroundingMetadata(el, title);
         title = enriched.title;
@@ -303,7 +273,6 @@ function attemptExtraction(el: HTMLElement | null): VideoData | Partial<VideoDat
         extraMeta.date = enriched.date;
         extraMeta.tags = enriched.tags;
     }
-
     const rawData = {
         title: title.trim().substring(0, 100),
         url: url,
@@ -311,7 +280,6 @@ function attemptExtraction(el: HTMLElement | null): VideoData | Partial<VideoDat
         timestamp: Date.now(),
         ...extraMeta
     };
-
     const result = VideoDataSchema.safeParse(rawData);
     if (!result.success) {
         console.warn("[VaultAuth] Extraction validation failed:", result.error);
@@ -319,17 +287,16 @@ function attemptExtraction(el: HTMLElement | null): VideoData | Partial<VideoDat
     }
     return result.data;
 }
-
 /**
  * Visual Indicators (Spinner & Success)
  */
-function addSpinnerIndicator(el: HTMLElement) {
-    if (!el) return;
+function addSpinnerIndicator(el) {
+    if (!el)
+        return;
     removeIndicators(el);
-
     const style = window.getComputedStyle(el);
-    if (style.position === "static") el.style.position = "relative";
-
+    if (style.position === "static")
+        el.style.position = "relative";
     const spinner = document.createElement("div");
     spinner.className = "vault-spinner-indicator";
     spinner.innerHTML = `
@@ -340,7 +307,6 @@ function addSpinnerIndicator(el: HTMLElement) {
             <path d="M12 2a10 10 0 0 1 10 10"></path>
         </svg>
     `;
-
     Object.assign(spinner.style, {
         position: "absolute",
         top: "8px",
@@ -348,15 +314,13 @@ function addSpinnerIndicator(el: HTMLElement) {
         zIndex: "2147483647",
         pointerEvents: "none"
     });
-
     el.appendChild(spinner);
 }
-
-function removeIndicators(el: HTMLElement) {
+function removeIndicators(el) {
     const spinner = el.querySelector(".vault-spinner-indicator");
-    if (spinner) spinner.remove();
+    if (spinner)
+        spinner.remove();
 }
-
 /**
  * Capture Flow Execution
  */
@@ -366,57 +330,54 @@ async function startCaptureFlow() {
         showVaultNotification("error", "No element focused");
         return;
     }
-
-    const anchor = target.closest("a") as HTMLAnchorElement | null;
-    const mediaContainer = target.closest("video, img, iframe, .video-player") as HTMLElement | null;
-    
+    const anchor = target.closest("a");
+    const mediaContainer = target.closest("video, img, iframe, .video-player");
     const uiTarget = anchor || mediaContainer || target;
-    if (uiTarget) addSpinnerIndicator(uiTarget as HTMLElement);
-
+    if (uiTarget)
+        addSpinnerIndicator(uiTarget);
     const data = attemptExtraction(target);
     if (!data || !data.url) {
-        if (uiTarget) removeIndicators(uiTarget as HTMLElement);
+        if (uiTarget)
+            removeIndicators(uiTarget);
         showVaultNotification("error", "Could not identify content");
         return;
     }
-
     showVaultNotification("processing", `Infiltrating: ${data.title?.substring(0, 20)}...`);
-
     try {
-        const response = (await browser.runtime.sendMessage({ 
-            action: "process_capture", 
-            data 
-        })) as { success: boolean, message?: string };
-
-        if (uiTarget) removeIndicators(uiTarget as HTMLElement);
-
+        const response = (await browser.runtime.sendMessage({
+            action: "process_capture",
+            data
+        }));
+        if (uiTarget)
+            removeIndicators(uiTarget);
         if (response && response.success) {
             showVaultNotification("success", "Item secured in vault");
-            if (uiTarget) addHeartIndicator(uiTarget as HTMLElement);
-        } else {
+            if (uiTarget)
+                addHeartIndicator(uiTarget);
+        }
+        else {
             showVaultNotification("error", response?.message || "Capture operation failed");
         }
-    } catch (e) {
+    }
+    catch (e) {
         console.error("[VaultAuth] Capture flow failed:", e);
-        if (uiTarget) removeIndicators(uiTarget as HTMLElement);
+        if (uiTarget)
+            removeIndicators(uiTarget);
         showVaultNotification("error", "Communication error with background.");
     }
 }
-
 /**
  * Message Handlers
  */
-browser.runtime.onMessage.addListener((request: any) => {
+browser.runtime.onMessage.addListener((request) => {
     if (request.action === "get_video_data") {
         console.log("[VaultAuth] Triggering extraction from DOM...");
         return Promise.resolve(attemptExtraction(lastHoveredElement));
     }
-    
     if (request.action === "show_notification" || request.type === "show_notification") {
         showVaultNotification(request.notificationType || request.type, request.message);
         return Promise.resolve(true);
     }
-
     if (request.type === "capture-video" || request.action === "capture-video") {
         console.log("[VaultAuth] Capture video shortcut triggered");
         startCaptureFlow();
@@ -424,17 +385,17 @@ browser.runtime.onMessage.addListener((request: any) => {
     }
     return undefined;
 });
-
 // Initialization
 const observer = new MutationObserver(() => {
-    if (mutationTimeout) clearTimeout(mutationTimeout);
+    if (mutationTimeout)
+        clearTimeout(mutationTimeout);
     mutationTimeout = setTimeout(highlightVaultItems, 1200);
 });
-
 if (document.body) {
     observer.observe(document.body, { childList: true, subtree: true });
     highlightVaultItems();
-} else {
+}
+else {
     window.addEventListener("DOMContentLoaded", () => {
         if (document.body) {
             observer.observe(document.body, { childList: true, subtree: true });
@@ -442,10 +403,10 @@ if (document.body) {
         }
     });
 }
-
 // Window message listener for cross-context or test triggering
 window.addEventListener("message", (event) => {
-    if (event.source !== window) return;
+    if (event.source !== window)
+        return;
     if (event.data && event.data.action === "capture-video") {
         console.log("[VaultAuth] Capture video triggered via window message");
         startCaptureFlow();

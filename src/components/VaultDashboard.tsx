@@ -1,19 +1,133 @@
-import { getSavedVideos } from '../lib/storage-vault';
+import browser from 'webextension-polyfill';
+import { getSavedVideos, saveVideos } from '../lib/storage-vault';
+import { getPreview } from '../lib/dexie-store'; // Added for binary previews
 import { type VideoData } from '../types/schemas';
-import { Heart, Search, Shield, Settings, Palette, Menu, FolderTree, ArrowDownAZ, LayoutTemplate, ChevronRight, ChevronLeft, ArrowLeft, Trash2, Edit2, Play, X, AlertTriangle } from 'lucide-react';
+import { Heart, Search, Shield, Settings, Palette, Menu, FolderTree, ArrowDownAZ, LayoutTemplate, ChevronRight, ChevronLeft, ArrowLeft, Trash2, Edit2, Play, X, AlertTriangle, RefreshCw, Lock } from 'lucide-react';
 import { cn } from '../lib/utils';
 import React, { useEffect, useState, useMemo, useRef } from 'react';
+
+/**
+ * Preview Player Component
+ * Handles the "YouTube-style" 10x2s hover preview
+ */
+const PreviewThumb: React.FC<{ video: VideoData }> = ({ video }) => {
+  const [previewBlob, setPreviewBlob] = useState<string | null>(null);
+  const [isHovering, setIsHovering] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    const checkPreview = async () => {
+      const blob = await getPreview(video.url);
+      if (blob && active) {
+        setPreviewBlob(URL.createObjectURL(blob));
+      }
+    };
+    checkPreview();
+    return () => { active = false; };
+  }, [video.url]);
+
+  const handleMouseEnter = async () => {
+    setIsHovering(true);
+    
+    // Check if we already have it in state
+    if (previewBlob) return;
+
+    // Check if it exists in the database
+    const blob = await getPreview(video.url);
+    if (blob) {
+      setPreviewBlob(URL.createObjectURL(blob));
+      return;
+    }
+
+    /**
+     * Recovery Logic: If more than 30s have elapsed since save and thumb is still missing,
+     * the background job likely failed or was interrupted. Retrigger now.
+     */
+    const now = Date.now();
+    const elapsed = now - video.timestamp;
+    
+    if (elapsed > 30000 && !isProcessing) {
+      console.log(`[VaultAuth] Preview missing after ${elapsed}ms. Retriggering for:`, video.title);
+      setIsProcessing(true);
+      try {
+        await browser.runtime.sendMessage({
+          action: 'generate_preview',
+          data: { 
+            url: video.rawVideoSrc || video.url, 
+            duration: typeof video.duration === 'number' ? video.duration : 60 
+          }
+        });
+        
+        // Poll briefly for the result
+        const retryBlob = await getPreview(video.url);
+        if (retryBlob) {
+          setPreviewBlob(URL.createObjectURL(retryBlob));
+        }
+      } catch (e) {
+        console.error("[VaultAuth] Manual retrigger failed:", e);
+      } finally {
+        setIsProcessing(false);
+      }
+    }
+  };
+
+  return (
+    <div 
+      className="absolute inset-0 z-20 overflow-hidden bg-black"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={() => setIsHovering(false)}
+    >
+      {isHovering && previewBlob ? (
+        <video
+          ref={videoRef}
+          src={previewBlob}
+          className="w-full h-full object-cover"
+          autoPlay
+          muted
+          loop
+          playsInline
+        />
+      ) : (
+        <img 
+          src={video.thumbnail} 
+          alt={video.title} 
+          className={cn(
+            "w-full h-full object-cover transition-opacity duration-300",
+            isHovering ? "opacity-0" : "opacity-100"
+          )} 
+        />
+      )}
+      
+      {isProcessing ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <RefreshCw className="text-vault-accent animate-spin" size={20} />
+        </div>
+      ) : (
+        !previewBlob && isHovering && (
+          <div className="absolute bottom-2 left-2 bg-black/60 text-[8px] text-white px-1 rounded uppercase tracking-tighter">
+            Processing...
+          </div>
+        )
+      )}
+    </div>
+  );
+};
 
 export const VaultDashboard: React.FC = () => {
   const [items, setItems] = useState<VideoData[]>([]);
   const [search, setSearch] = useState('');
+  const [searchField, setSearchField] = useState<keyof VideoData>('title');
   const [currentSkin, setCurrentSkin] = useState<number>(3);
   
   // Sidebar states
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [groupBy, setGroupBy] = useState('Hostname');
-  const [sortBy, setSortBy] = useState('DateDesc');
+  const [sortBy, setSortBy] = useState<keyof VideoData | 'DateDesc' | 'DateAsc'>('DateDesc');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [viewSize, setViewSize] = useState<number>(3); // 1: Details, 2: Small, 3: Medium, 4: Large, 5: Biggest
+  const [isDimmed, setIsDimmed] = useState(false); // Player Dimmer State
 
   // Layout & Pagination states
   const [isolatedGroup, setIsolatedGroup] = useState<string | null>(null);
@@ -25,6 +139,13 @@ export const VaultDashboard: React.FC = () => {
   const [playingVideo, setPlayingVideo] = useState<VideoData | null>(null);
   const [videoError, setVideoError] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  // PIN Settings
+  const [pinSettings, setPinSettings] = useState<any>(null);
+
+  // Browser Sync State
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isFirefox] = useState(() => navigator.userAgent.toLowerCase().includes('firefox'));
 
   useEffect(() => {
     const savedSkin = localStorage.getItem('vault-skin');
@@ -40,11 +161,45 @@ export const VaultDashboard: React.FC = () => {
     }
 
     const load = async () => {
+      const settings = await getPinSettings();
+      setPinSettings(settings);
+
       const all = await getSavedVideos();
       setItems(all || []);
     };
     load();
   }, []);
+
+  const togglePin = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const enabled = e.target.checked;
+    if (enabled) {
+      const newPin = window.prompt("Enter a new 4 or 6 digit PIN:");
+      if (newPin && (newPin.length === 4 || newPin.length === 6) && /^\d+$/.test(newPin)) {
+        const updated = { ...pinSettings, enabled: true, pin: newPin, lastUnlocked: Date.now() };
+        await savePinSettings(updated);
+        setPinSettings(updated);
+      } else {
+        alert("Invalid PIN. It must be 4 or 6 digits.");
+        e.target.checked = false;
+      }
+    } else {
+      const updated = { ...pinSettings, enabled: false };
+      await savePinSettings(updated);
+      setPinSettings(updated);
+    }
+  };
+
+  const updatePinLength = async (len: 4 | 6) => {
+     const updated = { ...pinSettings, length: len };
+     await savePinSettings(updated);
+     setPinSettings(updated);
+  };
+
+  const updateLockTimeout = async (timeout: number) => {
+     const updated = { ...pinSettings, lockTimeout: timeout };
+     await savePinSettings(updated);
+     setPinSettings(updated);
+  };
 
   const cycleTheme = () => {
     const nextSkin = currentSkin === 9 ? 1 : currentSkin + 1;
@@ -65,22 +220,41 @@ export const VaultDashboard: React.FC = () => {
   };
 
   const filtered = useMemo(() => {
-    return items.filter(f => 
-      f.title.toLowerCase().includes(search.toLowerCase()) ||
-      f.url.toLowerCase().includes(search.toLowerCase()) ||
-      (f.author && f.author.toLowerCase().includes(search.toLowerCase()))
-    );
-  }, [items, search]);
+    return items.filter(f => {
+      if (!search) return true;
+      const targetValue = f[searchField];
+      if (targetValue === null || targetValue === undefined) return false;
+      const searchStr = search.toLowerCase();
+      
+      if (Array.isArray(targetValue)) {
+        return targetValue.some(v => v.toString().toLowerCase().includes(searchStr));
+      }
+      
+      return targetValue.toString().toLowerCase().includes(searchStr);
+    });
+  }, [items, search, searchField]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
       if (sortBy === 'DateDesc') return b.timestamp - a.timestamp;
       if (sortBy === 'DateAsc') return a.timestamp - b.timestamp;
-      if (sortBy === 'TitleAZ') return a.title.localeCompare(b.title);
-      if (sortBy === 'TitleZA') return b.title.localeCompare(a.title);
-      return 0;
+      
+      const valA = a[sortBy as keyof VideoData];
+      const valB = b[sortBy as keyof VideoData];
+
+      if (valA === undefined || valA === null) return 1;
+      if (valB === undefined || valB === null) return -1;
+
+      let comparison = 0;
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        comparison = valA - valB;
+      } else {
+        comparison = valA.toString().localeCompare(valB.toString());
+      }
+
+      return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [filtered, sortBy]);
+  }, [filtered, sortBy, sortOrder]);
 
   const grouped = useMemo(() => {
     if (groupBy === 'None') return { 'All Items': sorted };
@@ -157,15 +331,31 @@ export const VaultDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="relative group w-48 md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted group-focus-within:text-vault-accent transition-colors" size={14} />
-            <input 
-              type="text"
-              placeholder="Search items..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-1.5 w-full bg-vault-cardBg border border-vault-border rounded-full outline-none focus:border-vault-accent text-sm transition-all"
-            />
+          <div className="relative group flex items-center gap-2">
+            <select
+              value={searchField}
+              onChange={(e) => setSearchField(e.target.value as keyof VideoData)}
+              className="bg-vault-cardBg border border-vault-border rounded-l-full px-3 py-1.5 text-xs text-vault-text focus:border-vault-accent outline-none appearance-none"
+            >
+              <option value="title">Title</option>
+              <option value="author">Author</option>
+              <option value="domain">Domain</option>
+              <option value="url">URL</option>
+              <option value="quality">Quality</option>
+              <option value="resolution">Res</option>
+              <option value="description">Desc</option>
+              <option value="tags">Tags</option>
+            </select>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted group-focus-within:text-vault-accent transition-colors" size={14} />
+              <input 
+                type="text"
+                placeholder={`Search in ${searchField}...`}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 pr-4 py-1.5 w-full bg-vault-cardBg border border-vault-border rounded-r-full outline-none focus:border-vault-accent text-sm transition-all"
+              />
+            </div>
           </div>
 
           <button 
@@ -226,22 +416,141 @@ export const VaultDashboard: React.FC = () => {
             </div>
 
             {/* Sorting */}
-            <div>
+            <div className="space-y-2">
                <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
-                <Shield size={14} className="text-vault-accent" /> Sort By
+                <Shield size={14} className="text-vault-accent" /> Sort Params
               </label>
-              <select 
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="w-full bg-vault-bg border border-vault-border text-xs p-1.5 rounded outline-none focus:border-vault-accent text-vault-text"
-              >
-                <option value="DateDesc">Newest First</option>
-                <option value="DateAsc">Oldest First</option>
-                <option value="TitleAZ">Title (A-Z)</option>
-                <option value="TitleZA">Title (Z-A)</option>
-              </select>
+              <div className="flex gap-2">
+                <select 
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="flex-1 bg-vault-bg border border-vault-border text-[10px] p-1.5 rounded outline-none focus:border-vault-accent text-vault-text"
+                >
+                  <option value="DateDesc">Newest (System)</option>
+                  <option value="DateAsc">Oldest (System)</option>
+                  <optgroup label="Metadata Fields">
+                    <option value="title">Title</option>
+                    <option value="author">Author</option>
+                    <option value="domain">Domain</option>
+                    <option value="views">Views</option>
+                    <option value="likes">Likes</option>
+                    <option value="dislikes">Dislikes</option>
+                    <option value="quality">Quality</option>
+                    <option value="resolution">Resolution</option>
+                    <option value="size">Size</option>
+                    <option value="timestamp">Date Saved</option>
+                    <option value="datePublished">Date Published</option>
+                  </optgroup>
+                </select>
+                <button
+                  onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                  className="vault-btn p-1 px-2 text-[10px] font-bold"
+                  title="Toggle Asc/Desc"
+                >
+                  {sortOrder === 'asc' ? 'ASC' : 'DESC'}
+                </button>
+              </div>
             </div>
             
+            <hr className="border-vault-border opacity-50 my-2" />
+            
+            {/* PIN System */}
+            <div className="pt-2">
+              <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-3">
+                <Lock size={14} className="text-vault-accent" /> PIN Protection
+              </label>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-vault-muted font-bold uppercase tracking-widest">Master PIN</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={pinSettings?.enabled || false} 
+                      onChange={togglePin}
+                    />
+                    <div className="w-9 h-5 bg-vault-cardBg peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-vault-muted after:border-vault-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-vault-accent peer-checked:after:bg-vault-bg" />
+                  </label>
+                </div>
+
+                {pinSettings?.enabled && (
+                  <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+                    <div>
+                      <span className="text-[9px] text-vault-muted font-bold block mb-1.5 uppercase opacity-60">Sequence Length</span>
+                      <div className="flex gap-2">
+                        {[4, 6].map(len => (
+                          <button
+                            key={len}
+                            onClick={() => updatePinLength(len as 4 | 6)}
+                            className={cn(
+                              "flex-1 py-1 text-[10px] font-black rounded-sm border transition-all",
+                              pinSettings.length === len 
+                                ? "bg-vault-accent border-vault-accent text-vault-bg shadow-[0_0_10px_-2px_var(--color-vault-accent)]" 
+                                : "bg-vault-bg border-vault-border text-vault-muted hover:border-vault-muted"
+                            )}
+                          >
+                            {len} DIGITS
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-[9px] text-vault-muted font-bold block mb-1.5 uppercase opacity-60">Auto-Locker Delay</span>
+                      <select 
+                        value={pinSettings.lockTimeout}
+                        onChange={(e) => updateLockTimeout(parseInt(e.target.value))}
+                        className="w-full bg-vault-bg border border-vault-border text-[10px] p-1.5 rounded outline-none focus:border-vault-accent text-vault-text font-bold"
+                      >
+                        <option value={600000}>10 Minutes</option>
+                        <option value={1800000}>30 Minutes</option>
+                        <option value={3600000}>1 Hour</option>
+                        <option value={7200000}>2 Hours</option>
+                        <option value={-1}>Never (Manual only)</option>
+                      </select>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const next = { ...pinSettings, lastUnlocked: 1 }; // Force lock
+                        savePinSettings(next);
+                        setPinSettings(next);
+                        setItems([]); 
+                      }}
+                      className="w-full py-1.5 text-[10px] font-black uppercase tracking-widest bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all rounded-sm"
+                    >
+                      Lock Vault Now
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <hr className="border-vault-border opacity-50 my-2" />
+            
+            {/* Sync Option */}
+            <div className="pt-2">
+              <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
+                <Shield size={14} className="text-vault-accent" /> Persistence
+              </label>
+              <button
+                onClick={() => setIsSyncing(!isSyncing)}
+                className={cn(
+                  "w-full vault-btn p-2 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 border-dashed",
+                  isSyncing ? "border-vault-accent text-vault-accent bg-vault-accent/5" : "border-vault-border text-vault-muted opacity-60 hover:opacity-100"
+                )}
+                title={isFirefox ? "Use Firefox Sync Storage" : "Use Chrome Sync Storage"}
+              >
+                <div className={cn("w-1.5 h-1.5 rounded-full", isSyncing ? "bg-vault-accent animate-pulse" : "bg-vault-muted")} />
+                {isSyncing ? "Sync Enabled" : "Enable Browser Sync"}
+              </button>
+              <p className="text-[9px] text-vault-muted mt-2 leading-relaxed opacity-60 italic">
+                {isFirefox 
+                  ? "Uses Firefox Sync to backup metadata across devices (excludes large binary previews)." 
+                  : "Uses Chrome Sync (subject to 100KB limit per item, recommended for metadata only)."}
+              </p>
+            </div>
+
             <hr className="border-vault-border opacity-50 my-2" />
             
             <div className="text-xs text-vault-muted space-y-2">
@@ -269,11 +578,18 @@ export const VaultDashboard: React.FC = () => {
             {groupsToRender.map(([groupName, groupItems]) => {
               const currentPage = pages[groupName] || 0;
               // If isolated, show all items using simple array, otherwise paginate
+              const maxRows = 2;
+              const perRow = viewClasses[viewSize as keyof typeof viewClasses].includes('grid-cols-4') ? 4 
+                           : viewClasses[viewSize as keyof typeof viewClasses].includes('grid-cols-3') ? 3
+                           : viewClasses[viewSize as keyof typeof viewClasses].includes('grid-cols-2') ? 2
+                           : 1;
+              const itemsPerPage = isolatedGroup ? groupItems.length : perRow * maxRows;
+              
               const displayItems = isolatedGroup 
                 ? groupItems 
-                : groupItems.slice(currentPage * maxItemsPerRow, (currentPage + 1) * maxItemsPerRow);
+                : groupItems.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage);
               
-              const totalPages = Math.ceil(groupItems.length / maxItemsPerRow);
+              const totalPages = Math.ceil(groupItems.length / itemsPerPage);
 
               return (
                 <section key={groupName} className="space-y-4">
@@ -329,7 +645,10 @@ export const VaultDashboard: React.FC = () => {
                         {/* THUMBNAIL AREA */}
                         {viewSize !== 1 && (
                           <div 
-                            onClick={() => {
+                            onClick={(e) => {
+                              // If clicking an action button inside the thumb, don't trigger play
+                              if ((e.target as HTMLElement).closest('.thumb-action')) return;
+                              
                               if (fav.type === 'video' && fav.rawVideoSrc) {
                                 setPlayingVideo(fav);
                                 setVideoError(false);
@@ -338,16 +657,39 @@ export const VaultDashboard: React.FC = () => {
                                 window.open(fav.url, '_blank');
                               }
                             }}
-                            className="relative w-full h-40 flex-none bg-vault-cardBg/50 overflow-hidden cursor-pointer group/thumb border-b border-vault-border"
+                            className="relative w-full h-40 flex-none bg-vault-cardBg/50 overflow-hidden cursor-pointer group/thumb border-b border-vault-border rounded-t-lg"
                           >
-                            {fav.thumbnail ? (
-                              <img src={fav.thumbnail} alt={fav.title} className="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-105" />
+                            {fav.type === 'video' ? (
+                              <PreviewThumb video={fav} />
                             ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-vault-cardBg to-vault-bg text-vault-muted">
-                                  <Shield size={32} className="opacity-20 mb-2" />
-                                  <span className="text-[10px] font-mono opacity-50">NO PREVIEW</span>
-                              </div>
+                              fav.thumbnail ? (
+                                <img src={fav.thumbnail} alt={fav.title} className="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-105" />
+                              ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-vault-cardBg to-vault-bg text-vault-muted">
+                                    <Shield size={32} className="opacity-20 mb-2" />
+                                    <span className="text-[10px] font-mono opacity-50">NO PREVIEW</span>
+                                </div>
+                              )
                             )}
+
+                            {/* Corner Accents */}
+                            <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-vault-accent/40 z-20 transition-all group-hover/thumb:w-4 group-hover/thumb:h-4 group-hover/thumb:border-vault-accent" />
+                            <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-vault-accent/40 z-20 transition-all group-hover/thumb:w-4 group-hover/thumb:h-4 group-hover/thumb:border-vault-accent" />
+                            <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-vault-accent/40 z-20 transition-all group-hover/thumb:w-4 group-hover/thumb:h-4 group-hover/thumb:border-vault-accent" />
+                            <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-vault-accent/40 z-20 transition-all group-hover/thumb:w-4 group-hover/thumb:h-4 group-hover/thumb:border-vault-accent" />
+
+                            {/* Internal Thumbnail Actions */}
+                            <div className="absolute top-2 left-2 z-30 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex flex-col gap-2">
+                              <button className="thumb-action p-1.5 bg-black/60 hover:bg-vault-accent text-white rounded shadow-lg backdrop-blur-md transition-all hover:scale-110" title="Edit Metadata">
+                                <Edit2 size={12} />
+                              </button>
+                            </div>
+                            
+                            <div className="absolute top-2 right-2 z-30 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex flex-col gap-2">
+                              <button className="thumb-action p-1.5 bg-black/60 hover:bg-red-500 text-white rounded shadow-lg backdrop-blur-md transition-all hover:scale-110" title="Delete Item">
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
 
                             {/* Duration Badge */}
                             {fav.duration && (
@@ -370,6 +712,14 @@ export const VaultDashboard: React.FC = () => {
                                 </div>
                               )}
                             </div>
+                            
+                            {/* Hover Status Info (Internal to Thumb) */}
+                            <div className="absolute bottom-2 left-2 z-20 opacity-0 group-hover/thumb:opacity-100 transition-opacity pointer-events-none">
+                              <div className="flex items-center gap-1.5 bg-black/80 px-2 py-1 rounded text-[10px] font-mono font-bold text-vault-accent border border-vault-accent/30 backdrop-blur-sm">
+                                <span className="w-1.5 h-1.5 rounded-full bg-vault-accent animate-pulse" />
+                                {fav.type === 'video' ? 'SCANNING' : 'LINK'}
+                              </div>
+                            </div>
                           </div>
                         )}
 
@@ -379,17 +729,10 @@ export const VaultDashboard: React.FC = () => {
                           <div className={cn("flex justify-between items-start mb-2", viewSize === 1 && "mb-0")}>
                             <div className="flex gap-2 items-center">
                               <span className="text-[10px] uppercase font-bold tracking-widest text-vault-bg bg-vault-muted px-2 py-0.5 rounded-sm">
-                                {viewSize > 1 ? `#${idx + 1 + (currentPage * maxItemsPerRow)}` : 'V-ID'}
+                                {viewSize > 1 ? `#${idx + 1 + (currentPage * itemsPerPage)}` : 'V-ID'}
                               </span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <button className="text-vault-muted hover:text-vault-accent transition-colors" title="Edit Item">
-                                <Edit2 size={13} />
-                              </button>
-                              <button className="text-vault-muted hover:text-red-500 transition-colors" title="Delete Item">
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
+                            {/* Removed redundant buttons from here in grid view, kept for detail list if needed but instruction asked for thumb corners */}
                           </div>
                           
                           <div className={cn("flex-1", viewSize === 1 ? "flex items-center justify-between w-full ml-4" : "flex flex-col")}>
@@ -476,21 +819,39 @@ export const VaultDashboard: React.FC = () => {
       {/* VIDEO PLAYER MODAL */}
       {playingVideo && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm transition-opacity"
-          onClick={() => setPlayingVideo(null)}
+          className={cn(
+            "fixed inset-0 z-50 flex items-center justify-center transition-all duration-700",
+            isDimmed ? "bg-black/98" : "bg-black/80 backdrop-blur-sm"
+          )}
+          onClick={() => { setPlayingVideo(null); setIsDimmed(false); }}
         >
           <div 
-            className="w-[90vw] max-w-5xl bg-vault-cardBg border border-vault-border rounded-lg shadow-2xl flex flex-col overflow-hidden"
+            className={cn(
+              "w-[90vw] max-w-5xl bg-vault-cardBg border border-vault-border rounded-lg shadow-2xl flex flex-col overflow-hidden transition-transform duration-500",
+              playingVideo ? "scale-100 opacity-100" : "scale-95 opacity-0"
+            )}
             onClick={e => e.stopPropagation()} // Prevent close on click inside
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-vault-border bg-vault-bg/50">
-              <h3 className="font-bold text-lg text-vault-text line-clamp-1 pr-4">
-                {playingVideo.title || 'Untitled Video'}
-              </h3>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setIsDimmed(!isDimmed)}
+                  className={cn(
+                    "vault-btn p-1.5 h-8 w-8 flex items-center justify-center rounded-full transition-all border border-vault-border/50",
+                    isDimmed ? "bg-vault-accent text-vault-bg" : "bg-vault-cardBg text-vault-muted hover:text-vault-accent"
+                  )}
+                  title={isDimmed ? "Turn Lights ON" : "Turn Lights OFF"}
+                >
+                  <Palette size={16} fill={isDimmed ? "currentColor" : "none"} />
+                </button>
+                <h3 className="font-bold text-lg text-vault-text line-clamp-1 pr-4">
+                  {playingVideo.title || 'Untitled Video'}
+                </h3>
+              </div>
               <button 
                 title="Close Player"
-                onClick={() => setPlayingVideo(null)}
+                onClick={() => { setPlayingVideo(null); setIsDimmed(false); }}
                 className="vault-btn p-1.5 h-8 w-8 flex items-center justify-center rounded-full hover:bg-red-500/10 hover:text-red-500 transition-colors border-none"
               >
                 <X size={20} />
@@ -498,8 +859,29 @@ export const VaultDashboard: React.FC = () => {
             </div>
             
             {/* Modal Body / Player */}
-            <div className="relative w-full aspect-video bg-black flex items-center justify-center">
-              {videoError ? (
+            <div className="relative w-full aspect-video bg-black flex items-center justify-center group/player">
+              {playingVideo.type === 'video' && playingVideo.rawVideoSrc && !videoError ? (
+                <div className="w-full h-full relative">
+                  <video 
+                    src={playingVideo.rawVideoSrc}
+                    autoPlay
+                    controls
+                    preload="auto"
+                    className="w-full h-full object-contain"
+                    playsInline
+                    onError={() => setVideoError(true)}
+                  />
+                  {/* Status Overlay */}
+                  <div className="absolute top-4 left-4 z-20 pointer-events-none transition-opacity group-hover/player:opacity-100 opacity-20 group-hover/player:delay-100">
+                    <div className="flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded-sm border border-vault-accent/30 backdrop-blur-md">
+                      <div className="w-2 h-2 rounded-full bg-vault-accent animate-pulse" />
+                      <span className="text-[10px] font-mono font-bold text-vault-accent uppercase tracking-widest">
+                        Vault Stream: {playingVideo.quality || playingVideo.resolution || 'AUTO'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : videoError ? (
                 <div className="text-center space-y-4 p-6">
                   <AlertTriangle className="mx-auto text-yellow-500" size={48} />
                   <div>
@@ -509,11 +891,38 @@ export const VaultDashboard: React.FC = () => {
                   <div className="flex justify-center gap-3 mt-4">
                     <button 
                       className="vault-btn text-sm px-4 py-2 flex items-center gap-2"
-                      onClick={() => {
+                      onClick={async () => {
+                        if (!playingVideo) return;
                         setIsRefreshing(true);
                         setVideoError(false);
-                        // Trigger background request logic here eventually
-                        setTimeout(() => { setIsRefreshing(false); setVideoError(true); }, 2000);
+                        try {
+                          const response = (await browser.runtime.sendMessage({
+                            action: "extract_fresh_m3u8",
+                            url: playingVideo.url
+                          })) as { src: string | null };
+                          
+                          if (response && response.src) {
+                            // Update the video in local state
+                            const updated = { ...playingVideo, rawVideoSrc: response.src };
+                            setPlayingVideo(updated);
+                            
+                            // Update in permanent storage
+                            const all = await getSavedVideos();
+                            const idx = all.findIndex(v => v.url === playingVideo.url);
+                            if (idx !== -1) {
+                              all[idx].rawVideoSrc = response.src;
+                              await saveVideos(all);
+                              setItems(all);
+                            }
+                          } else {
+                            setVideoError(true);
+                          }
+                        } catch (err) {
+                          console.error("Refresh failed:", err);
+                          setVideoError(true);
+                        } finally {
+                          setIsRefreshing(false);
+                        }
                       }}
                       disabled={isRefreshing}
                     >

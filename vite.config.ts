@@ -21,6 +21,10 @@ export default defineConfig({
           src: 'icons/*',
           dest: '.',
         },
+        {
+          src: 'node_modules/webextension-polyfill/dist/browser-polyfill.js',
+          dest: '.',
+        },
       ],
     }),
 ],
@@ -31,6 +35,7 @@ export default defineConfig({
         background: resolve(__dirname, 'background/scripts/background.ts'),
         content: resolve(__dirname, 'src/scripts/content.ts'),
         dashboard: resolve(__dirname, 'dashboard-v2.html'),
+        pin: resolve(__dirname, 'pin-entry.html'),
       },
       output: {
         entryFileNames: (chunkInfo) => {

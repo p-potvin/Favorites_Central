@@ -289,9 +289,54 @@ async function runCapturePipeline(data: any, tabId?: number, windowId?: number):
         saved.push(data);
         await saveVideos(saved);
 
+        /**
+         * Trigger Background Preview Generation (Async)
+         * No need to await this as we want primary capture to finish immediately.
+         */
+        if (data.rawVideoSrc) {
+            setupOffscreenDocument().then(() => {
+                browser.runtime.sendMessage({
+                    action: "generate_preview",
+                    data: { 
+                        url: data.rawVideoSrc, 
+                        duration: typeof data.duration === 'number' ? data.duration : 60 
+                    }
+                }).catch(err => console.warn("[VaultAuth] Background preview trigger failed:", err));
+            });
+        }
+
         return { success: true, data };
     } catch (err: any) {
         return { success: false, message: err.message };
+    }
+}
+
+/**
+ * Offscreen Management
+ */
+async function setupOffscreenDocument() {
+    console.log("[VaultAuth] Ensuring offscreen document for preview generation...");
+    const offscreenUrl = 'src/offscreen/processor.html';
+    
+    // Check if it's already there
+    try {
+        const contexts = await (browser.runtime as any).getContexts({
+            contextTypes: ['OFFSCREEN_DOCUMENT'],
+            documentUrls: [browser.runtime.getURL(offscreenUrl)]
+        });
+        if (contexts.length > 0) return;
+    } catch (e) {
+        // Fallback for older chrome or if getContexts is not available
+    }
+
+    try {
+        await (browser as any).offscreen.createDocument({
+            url: offscreenUrl,
+            reasons: ['DOM_PARSER', 'AUDIO_PLAYBACK', 'BLOBS' as any],
+            justification: 'FFmpeg WASM processing for video previews'
+        });
+    } catch (e) {
+        console.error("[VaultAuth] Failed to create offscreen document", e);
     }
 }
 
@@ -308,6 +353,12 @@ browser.runtime.onMessage.addListener((request: any, sender: any) => {
     }
     if (request.action === "process_capture") {
         return runCapturePipeline(request.data, sender?.tab?.id, sender?.tab?.windowId);
+    }
+    if (request.action === "generate_preview") {
+        setupOffscreenDocument().then(() => {
+            browser.runtime.sendMessage(request);
+        });
+        return true;
     }
     return false;
 });
