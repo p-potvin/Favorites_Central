@@ -23,8 +23,9 @@ export interface ExtractionResult {
  * Compatible with Chrome and Firefox via webextension-polyfill.
  */
 async function doTabExtraction(targetUrl: string): Promise<ExtractionResult | null> {
-    console.log("[VaultAuth] Starting extraction for:", targetUrl);
+
     let scraperTabId: number | undefined = undefined;
+    let scraperWindowId: number | undefined = undefined;
     let webRequestListener: ((details: browser.WebRequest.OnBeforeRequestDetailsType) => void) | null = null;
     let globalTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -39,7 +40,7 @@ async function doTabExtraction(targetUrl: string): Promise<ExtractionResult | nu
             if (isResolved) return;
             isResolved = true;
 
-            console.log(`[VaultAuth] Cleanup: ${reason}. TabID: ${scraperTabId}`);
+
 
             if (globalTimeoutId) clearTimeout(globalTimeoutId);
 
@@ -47,11 +48,18 @@ async function doTabExtraction(targetUrl: string): Promise<ExtractionResult | nu
                 try {
                     browser.webRequest.onBeforeRequest.removeListener(webRequestListener);
                 } catch (e) {
-                    console.warn("[VaultAuth] Error removing webRequest listener:", e);
+
                 }
             }
 
-            if (scraperTabId !== undefined) {
+            if (scraperWindowId !== undefined) {
+                try {
+                    await browser.windows.remove(scraperWindowId);
+                } catch (e) {
+                    /* ignore if already closed */
+                    console.debug("[VaultAuth] Window already closed or error:", e);
+                }
+            } else if (scraperTabId !== undefined) {
                 try {
                     await browser.tabs.remove(scraperTabId);
                 } catch (e) {
@@ -64,9 +72,22 @@ async function doTabExtraction(targetUrl: string): Promise<ExtractionResult | nu
         };
 
         try {
-            // Create a background tab (not active)
-            const scraperTab = await browser.tabs.create({ url: targetUrl, active: false });
-            scraperTabId = scraperTab.id;
+            // Create a background tab (not active) inside a minimized offscreen window to prevent popping into view
+            const scraperWindow = await browser.windows.create({
+                url: targetUrl,
+                type: "popup",
+                state: "minimized",
+                focused: false
+            });
+            scraperWindowId = scraperWindow.id;
+            const scraperTab = scraperWindow.tabs && scraperWindow.tabs.length > 0 ? scraperWindow.tabs[0] : null;
+            if (scraperTab) {
+                scraperTabId = scraperTab.id;
+            } else {
+                // very unusual fallback
+                const fallbackTab = await browser.tabs.create({ url: targetUrl, active: false });
+                scraperTabId = fallbackTab.id;
+            }
 
             // Global safety timeout
             globalTimeoutId = setTimeout(() => {
@@ -77,7 +98,7 @@ async function doTabExtraction(targetUrl: string): Promise<ExtractionResult | nu
             if (browser.webRequest) {
                 webRequestListener = (details) => {
                     if (details.tabId === scraperTabId && details.url.includes('.m3u8')) {
-                        console.log("[VaultAuth] Intercepted HLS stream:", details.url);
+
                         latestM3u8 = details.url;
                         // We don't resolve immediately; keep listening until script injection or timeout
                     }
@@ -215,12 +236,12 @@ async function doTabExtraction(targetUrl: string): Promise<ExtractionResult | nu
                         }, 2000);
                     }
                 } catch (e) {
-                    console.error("[VaultAuth] Injection error:", e);
+
                 }
             };
 
         } catch (e) {
-            console.error("[VaultAuth] Tab isolation failed:", e);
+
             cleanup(null, "Internal isolation error");
         }
     });
@@ -259,7 +280,8 @@ async function runCapturePipeline(data: any, tabId?: number, windowId?: number):
             const extracted = await doTabExtraction(targetUrl);
             if (extracted && extracted.src) {
                 finalSrc = extracted.src;
-                
+                data.type = "video";
+
                 if (extracted.metadata) {
                     if (extracted.metadata.thumbnail) data.thumbnail = extracted.metadata.thumbnail;
                     if (extracted.metadata.duration) data.duration = extracted.metadata.duration;
@@ -281,7 +303,7 @@ async function runCapturePipeline(data: any, tabId?: number, windowId?: number):
                 const dataUrl = await browser.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 20 });
                 data.thumbnail = dataUrl;
             } catch (captureErr) {
-                console.warn("[VaultAuth] Failed to capture visible tab for thumbnail", captureErr);
+
             }
         }
 
@@ -301,7 +323,7 @@ async function runCapturePipeline(data: any, tabId?: number, windowId?: number):
                         url: data.rawVideoSrc, 
                         duration: typeof data.duration === 'number' ? data.duration : 60 
                     }
-                }).catch(err => console.warn("[VaultAuth] Background preview trigger failed:", err));
+                });
             });
         }
 
@@ -315,7 +337,7 @@ async function runCapturePipeline(data: any, tabId?: number, windowId?: number):
  * Offscreen Management
  */
 async function setupOffscreenDocument() {
-    console.log("[VaultAuth] Ensuring offscreen document for preview generation...");
+
     const offscreenUrl = 'src/offscreen/processor.html';
     
     // Check if it's already there
@@ -336,7 +358,7 @@ async function setupOffscreenDocument() {
             justification: 'FFmpeg WASM processing for video previews'
         });
     } catch (e) {
-        console.error("[VaultAuth] Failed to create offscreen document", e);
+
     }
 }
 
@@ -386,14 +408,14 @@ browser.commands.onCommand.addListener(async (command) => {
             }
 
             try {
-                console.log("[VaultAuth] Sending shortcut command to tab", activeTab.id);
+
                 const response = await browser.tabs.sendMessage(activeTab.id, { type: "capture-video" });
                 if (!response) {
                     throw new Error("No response from content script");
                 }
             } catch (error) {
                 // If content script is dead/missing, we notify the user to refresh instead of continuing
-                console.warn("[VaultAuth] Shortcut target unreachable:", error);
+
                 
                 // We use a generic notification via another method if possible, 
                 // but since the content script is dead, we can't show our custom UI.
@@ -409,11 +431,11 @@ browser.commands.onCommand.addListener(async (command) => {
                         }
                     });
                 } catch (e) {
-                    console.error("[VaultAuth] Could not even inject alert:", e);
+
                 }
             }
         } catch (error) {
-            console.error("[VaultAuth] Fatal error in capture-video shortcut:", error);
+
         }
     }
 });

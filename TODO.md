@@ -1,71 +1,58 @@
 # 🎯 Vault Central Development Roadmap (VaultWares Standards)
 
-## 🛡️ Phase 1: Core Standard & Cleanup
-- [x] **Naming Consistency**: Rename `src/components/Dashboard.tsx` to `src/components/VaultDashboard.tsx` per [instructions.md](.github/instructions.md).
-- [x] **Redundant Purge**: Manually delete `Dashboard-v4.tsx`, `Dashboard.tsx-v2`, `Dashboard.tsx-v3`, and other versioned artifacts.
-- [x] **Type Safety**: Purged `any` from pipelines and updated schemas to include 15+ metadata fields.
-- [x] **Theme Logic**: Align Dashboard theme logic with [STYLE.md](.github/STYLE.md) (Skins 1-9 light/dark mapping).
+## 🛡️ Phase 1: Core Standard & Cleanup [COMPLETED]
+- [x] **Naming Consistency**: Rename src/components/Dashboard.tsx to src/components/VaultDashboard.tsx per instructions.md.
+- [x] **Redundant Purge**: Manually delete versioned artifacts (Dashboard-v4.tsx, etc).
+- [x] **Type Safety**: Purged ny from pipelines and updated schemas to include 15+ metadata fields.
+- [x] **Theme Logic**: Align Dashboard theme logic with STYLE.md.
 
-## ⌨️ Phase 2: Input & Interaction (AGENT.md Alignment)
-- [x] **Shortcut ALT+X**: Implement "Capture under mouse" logic in [content.ts](src/scripts/content.ts).
+## ⌨️ Phase 2: Input & Interaction (AGENT.md Alignment) [COMPLETED]
+- [x] **Shortcut ALT+X**: Implement "Capture under mouse" logic in content.ts.
     - [x] Calculate "closest to mouse pointer" element (Bresenham-lite search).
-    - [x] Handle silent hidden tab creation for m3u8 interception.
-- [x] **Shortcut ALT+C**: Verify command mapping to open the [VaultDashboard.tsx](src/components/VaultDashboard.tsx).
+    - [x] Handle silent background extraction to strip muted previews and accurately fetch m3u8 or raw sources.
+    - [x] Execute deep extraction in a fully minimized OS background window (no visible tabs popping up).
+- [x] **Shortcut ALT+C**: Verify command mapping to open the VaultDashboard.tsx.
 
 ## 📊 Phase 3: Dashboard UI/UX (VaultWares Design) [COMPLETED]
-- [x] **Header Refinement**: 
-    - [x] Ensure VaultWares logo and link are present.
-    - [x] Implement the "Secure Media Vault" sub-header.
-- [x] **Side-Panel**:
-    - [x] Verify "Group By Hostname" as default.
-    - [x] Implement "View Types" slider (Details -> Biggest).
-- [x] **Filtering & Sorting**:
-    - [x] Implement universal filter across all metadata fields.
-    - [x] Implement multi-field sorting with ASC/DESC toggle.
-- [x] **Grid & Pagination**:
-    - [x] Enforce 2-row maximum per section with pagination buttons.
-    - [x] Implement Infinite Scrolling (50 section limit per load).
+- [x] **Header Refinement**: Ensure VaultWares logo and link are present.
+- [x] **Side-Panel**: Verify "Group By Hostname", remove overflow hidden issues.
+- [x] **View Scaling**: Implement variable visual layout scaling via range slider (0 = List/Details, 1-5 Grid Thumbnail Size).
+- [x] **Filtering & Sorting & Pagination**: Working multi-field logic with Infinite Scrolling (50 max load).
 
-## 🎥 Phase 4: Item Behavior & Player [IN-PROGRESS]
-- [x] **Hover Feedback**: 
-    - [x] Implement thumbnail hover effect (Overlay, scanning animation, play preview).
-    - [x] Internalize duration/meta into thumbnail (Target-lock style corners).
-    - [x] Bottom-right duration badge.
+## 🎥 Phase 4: Item Behavior & Player [COMPLETED]
+- [x] **Hover Feedback**: Implement thumbnail hover effect (Overlay, scanning animation).
 - [x] **Action Icons**:
-    - [x] Top-left: Edit Metadata (Internalized to Thumb).
-    - [x] Top-right: Delete Item (Internalized to Thumb).
-- [~] **Prop Player**:
-    - [x] Centered modal (non-fullscreen).
-    - [x] Autoplay/Controls.
-    - [x] "Hidden Tab Refresh" for expired m3u8 links.
+    - [x] Top-left: Edit Metadata (Form to modify titles/tags).
+    - [x] Top-right: Delete Item (Removes from Vault DB).
+- [x] **Core Player**:
+    - [x] Centered native <video> modal.
+    - [x] Integrates custom hls.js wrapper <HlsVideoPlayer> for native .m3u8 streaming.
 
 ## 🧠 Phase 5: Vault Intelligence (Advanced Previews) [COMPLETED]
 - [x] **Binary Storage**: Dexie.js (IndexedDB) for storing high-fidelity preview Blobs.
-- [x] **Offscreen Processor**: FFmpeg WASM implementation via `chrome.offscreen`.
-- [x] **YouTube-style Preview**: 10 chunks of 2s muted WebM playback on hover.
 - [x] **Automated Processing**: Background job triggered immediately on save.
-- [x] **Fault Tolerance**: Manual recovery job triggered on hover if >30s elapsed since save.
-- [x] **Theatrical Player**: Immersive video player with "Light Dimmer" (Palette icon).
-- [x] **Browser Sync**: Multi-device state syncing (Firefox/Chrome APIs) [Metadata Only].
+- [x] **Browser Sync**: Multi-device state syncing.
+
 ## 🔒 Phase 6: Security & Privacy (PIN System) [COMPLETED]
-- [x] **Proton-style PIN**: Optional 4 or 6-digit PIN system.
-- [x] **Secure Popup**: Rounded 4/6 input boxes with automatic transition and focus.
+- [x] **Proton-style PIN**: Optional 4/6-digit PIN system.
 - [x] **Persistent Lock**: Memory-only database loading until authenticated.
-- [x] **DevTools Hardening**: AES-256 encryption for IndexedDB Blobs using PIN as salt.
-- [x] **In-Memory Logic**: `getSavedVideos` logic blocked by `isVaultLocked()` check.
-- [x] **Idle Timeout**: Dropdown configuration (10m, 30m, 1h, 2h, Never).
-- [x] **Locker UI**: Visual "Vault Unlocked" vs "Authenticating" states in popup.
+- [x] **DevTools Hardening**: AES-256 encryption.
 
-## 🔔 Phase 7: Site Injections & Notifications [COMPLETED]
-- [x] **Sync Indicators**: Green "Cloud-Heart" icon injected into thumbnails/links of saved items.
-- [x] **Capture Toast**: Notification when starting capture via Alt+X (with spinner).
-- [x] **Contextual Metadata**: In-DOM extraction of author, views, and tags during capture.
-- [x] **Success/Failure Toasts**: Interactive, translucent notifications with security-focused messaging.
-- [x] **Real-time Updates**: MutationObserver automatically updates indicators when site content scrolls/reloads.
+## 🔔 Phase 7: External Integrations & Cloud Sites [COMPLETED]
+- [x] **Google Drive API**:
+    - [x] Authorized token fetching.
+    - [x] Convert Vault Blob payload.
+    - [x] Upload via Multi-part to GDrive account instantly.
+- [x] **DOM Injection**: Sync Indicators / Capture Toast / Success Toasts.
 
-## 🔮 Phase 8: Future Vault Features
-- [ ] **Vault Portability**: Export/Import JSON logic.
-- [ ] **Multi-Type Support**: Music, Torrents, and Bookmarks.
+## 🔮 Phase 8: Refinement & Immediate Backlog [IN-PROGRESS]
+- [x] **Google Drive Resumable API**: Standard `multipart` upload caps/fails on items larger than 5MB. Must convert `google-drive.ts` to use Google's Resumable Session Upload algorithm for big recordings.
+- [x] **Console/Debug Purge**: A large volume of console.log and console.warn statements are lingering in background.ts and content.ts. Needs a global clean.
+- [x] **Edge-Case Captchas**: Minimized offscreen windows might hang indefinitely if the site (like Cloudflare) serves a hidden Captcha challenge during deep tab background extraction. Needs deterministic fallback logic.
+
+## 🚀 Phase 9: Future Expansion
+- [x] **Vault Portability**: Export/Import JSON layout configuration.
+- [x] **Multi-Type Support**: Music, Torrents, and Bookmarks parsing.
 
 ---
-*Generated by VaultAssistant 2.0*
+*Generated by VaultAssistant 3.0*

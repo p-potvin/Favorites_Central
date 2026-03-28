@@ -15,7 +15,6 @@ document.addEventListener("mousemove", (e) => {
 // Listen for Alt+X shortcut globally
 document.addEventListener("keydown", (e) => {
     if (e.altKey && (e.key === "x" || e.key === "X" || e.code === "KeyX")) {
-        console.log("[VaultAuth] Alt+X shortcut detected");
         e.preventDefault();
         e.stopPropagation();
         startCaptureFlow();
@@ -70,7 +69,6 @@ async function highlightVaultItems() {
         });
     }
     catch (e) {
-        console.error("[VaultAuth] Highlight failure:", e);
     }
 }
 /**
@@ -223,15 +221,136 @@ function extractSurroundingMetadata(baseEl, existingTitle) {
         }
     }
     catch (err) {
-        console.warn("[VaultAuth] Failed to extract surrounding metadata", err);
     }
     return meta;
 }
 /**
+ * Execute code in the main page context to access page globals (like jwplayer)
+ */
+function runInMainWorld(fn) {
+    return new Promise(resolve => {
+        const script = document.createElement('script');
+        const id = Math.random().toString(36).substring(7);
+        script.textContent = `
+            (async () => {
+                try {
+                    const res = await (${fn.toString()})();
+                    window.postMessage({ type: 'MAIN_WORLD_RESULT', id: "${id}", result: res }, "*");
+                } catch(e) {
+                    window.postMessage({ type: 'MAIN_WORLD_RESULT', id: "${id}", error: e.toString() }, "*");
+                }
+            })();
+        `;
+        const listener = (e) => {
+            if (e.source === window && e.data && e.data.type === 'MAIN_WORLD_RESULT' && e.data.id === id) {
+                window.removeEventListener('message', listener);
+                script.remove();
+                resolve(e.data.result);
+            }
+        };
+        window.addEventListener('message', listener);
+        document.documentElement.appendChild(script);
+        // Timeout just in case
+        setTimeout(() => {
+            window.removeEventListener('message', listener);
+            script.remove();
+            resolve(null);
+        }, 3000);
+    });
+}
+/**
  * Reliable Data Extraction (Runtime Validated)
  */
-function attemptExtraction(el) {
-    // Priority 1: Direct link hover
+async function attemptExtraction(el) {
+    let extractedUrl = null;
+    let videoEl = null;
+    // Search for a video element related to the hovered tag
+    if (el) {
+        videoEl = (el.closest("video") || el.querySelector("video"));
+        if (!videoEl) {
+            // Check if we are inside a video player or lightbox (like lightgallery)
+            const container = el.closest('.lg-video-cont, .video-player, .plyr, .player-wrapper, [data-vjs-player]');
+            if (container) {
+                videoEl = container.querySelector('video');
+            }
+        }
+    }
+    // Fallback: If no direct video hovered, check if there's a dominant video on the screen
+    if (!videoEl) {
+        const videos = Array.from(document.querySelectorAll('video')).filter(v => {
+            const rect = v.getBoundingClientRect();
+            // Checking if video is relatively visible and not tiny
+            return rect.width > 150 && rect.height > 150 && v.offsetParent !== null;
+        });
+        if (videos.length > 0) {
+            videoEl = videos[0]; // grab the first prominent one
+        }
+    }
+    if (videoEl) {
+        let src = videoEl.getAttribute('src') || videoEl.currentSrc;
+        if (!src && videoEl.querySelector('source')) {
+            src = videoEl.querySelector('source')?.getAttribute('src') || "";
+        }
+        // Only use the video source if it isn't a blob (blob URLs can't be saved cross-session)
+        if (src && !src.startsWith('blob:')) {
+            try {
+                extractedUrl = new URL(src, window.location.origin).href;
+            }
+            catch (e) {
+                extractedUrl = src;
+            }
+        }
+    }
+    // Main World Media Source Check (JWPlayer, VideoJS, custom configs)
+    if (!extractedUrl) {
+        const mainWorldSrc = await runInMainWorld(() => {
+            try {
+                // JWPlayer
+                // @ts-ignore
+                if (typeof window.jwplayer === 'function') {
+                    // @ts-ignore
+                    const players = document.querySelectorAll('.jwplayer');
+                    // @ts-ignore
+                    const p = window.jwplayer(players.length > 0 ? players[0].id : undefined);
+                    if (p && p.getPlaylist) {
+                        const pl = p.getPlaylist();
+                        if (pl && pl.length > 0 && pl[0].file) {
+                            return pl[0].file;
+                        }
+                    }
+                }
+                // Video.js
+                // @ts-ignore
+                if (typeof window.videojs === 'function') {
+                    // @ts-ignore
+                    for (const playerId in window.videojs.players) {
+                        // @ts-ignore
+                        const player = window.videojs.players[playerId];
+                        const src = player?.src();
+                        if (src && !src.startsWith('blob:'))
+                            return src;
+                    }
+                }
+                // Global variables often used by streamers
+                // @ts-ignore
+                if (typeof window.playerConfig !== 'undefined' && window.playerConfig.file)
+                    return window.playerConfig.file;
+                return null;
+            }
+            catch (err) {
+                return null;
+            }
+        });
+        if (mainWorldSrc && typeof mainWorldSrc === 'string' && !mainWorldSrc.startsWith('blob:')) {
+            try {
+                extractedUrl = new URL(mainWorldSrc, window.location.origin).href;
+            }
+            catch (e) {
+                extractedUrl = mainWorldSrc;
+            }
+        }
+    }
+    // Priority 2: Direct link hover if we didn't find a direct media url
     let link = el?.closest("a");
     // Priority 2: Bresenham-lite search for nearby links if not on one
     if (!link && el) {
@@ -252,7 +371,20 @@ function attemptExtraction(el) {
             }
         }
     }
-    const url = link?.href || window.location.href;
+    // If the media element is wrapped in an anchor pointing to another page, use that as the primary URL.
+    // This ensures we save the actual video page instead of returning a muted hover preview.
+    let url = window.location.href;
+    if (link && link.href && !link.href.startsWith("javascript:")) {
+        url = link.href;
+        // If we are targeting a different URL (like a gallery thumbnail), heavily favor deep extraction.
+        // Discard any locally found video as it is highly likely just a teaser/preview snippet.
+        if (url !== window.location.href) {
+            extractedUrl = null;
+        }
+    }
+    else if (extractedUrl) {
+        url = extractedUrl;
+    }
     let title = "Untitled Media";
     if (el) {
         title = el.getAttribute("title") || el.getAttribute("aria-label") || el.getAttribute("alt") || "";
@@ -278,11 +410,12 @@ function attemptExtraction(el) {
         url: url,
         thumbnail: "",
         timestamp: Date.now(),
+        type: (extractedUrl ? 'video' : 'link'),
+        rawVideoSrc: extractedUrl || undefined,
         ...extraMeta
     };
     const result = VideoDataSchema.safeParse(rawData);
     if (!result.success) {
-        console.warn("[VaultAuth] Extraction validation failed:", result.error);
         return rawData;
     }
     return result.data;
@@ -335,7 +468,7 @@ async function startCaptureFlow() {
     const uiTarget = anchor || mediaContainer || target;
     if (uiTarget)
         addSpinnerIndicator(uiTarget);
-    const data = attemptExtraction(target);
+    const data = await attemptExtraction(target);
     if (!data || !data.url) {
         if (uiTarget)
             removeIndicators(uiTarget);
@@ -360,7 +493,6 @@ async function startCaptureFlow() {
         }
     }
     catch (e) {
-        console.error("[VaultAuth] Capture flow failed:", e);
         if (uiTarget)
             removeIndicators(uiTarget);
         showVaultNotification("error", "Communication error with background.");
@@ -371,7 +503,6 @@ async function startCaptureFlow() {
  */
 browser.runtime.onMessage.addListener((request) => {
     if (request.action === "get_video_data") {
-        console.log("[VaultAuth] Triggering extraction from DOM...");
         return Promise.resolve(attemptExtraction(lastHoveredElement));
     }
     if (request.action === "show_notification" || request.type === "show_notification") {
@@ -379,7 +510,6 @@ browser.runtime.onMessage.addListener((request) => {
         return Promise.resolve(true);
     }
     if (request.type === "capture-video" || request.action === "capture-video") {
-        console.log("[VaultAuth] Capture video shortcut triggered");
         startCaptureFlow();
         return Promise.resolve(true);
     }
@@ -408,7 +538,6 @@ window.addEventListener("message", (event) => {
     if (event.source !== window)
         return;
     if (event.data && event.data.action === "capture-video") {
-        console.log("[VaultAuth] Capture video triggered via window message");
         startCaptureFlow();
     }
 });

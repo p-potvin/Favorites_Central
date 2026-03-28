@@ -14,7 +14,7 @@ export const test = base.extend<{
     let context: BrowserContext;
     if (browserName === 'firefox') {
       context = await (base as any).firefox.launchPersistentContext('', {
-        headless: true,
+        headless: false,
         args: [
           `--load-extension=${pathToExtension}`,
         ],
@@ -28,7 +28,7 @@ export const test = base.extend<{
       });
     } else {
       context = await (base as any).chromium.launchPersistentContext('', {
-        headless: true,
+        headless: false,
         args: [
           `--disable-extensions-except=${pathToExtension}`,
           `--load-extension=${pathToExtension}`,

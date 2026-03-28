@@ -5,7 +5,7 @@
   "main": "content.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node package-extension.cjs",
+    "build": "tsc && vite build && vite build -c vite.config.content.ts && node package-extension.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview"

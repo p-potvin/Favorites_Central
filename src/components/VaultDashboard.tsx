@@ -1,9 +1,10 @@
 import browser from 'webextension-polyfill';
-import { getSavedVideos, saveVideos } from '../lib/storage-vault';
+import { getPinSettings, getSavedVideos, savePinSettings, saveVideos } from '../lib/storage-vault';
 import { getPreview } from '../lib/dexie-store'; // Added for binary previews
 import { type VideoData } from '../types/schemas';
-import { Heart, Search, Shield, Settings, Palette, Menu, FolderTree, ArrowDownAZ, LayoutTemplate, ChevronRight, ChevronLeft, ArrowLeft, Trash2, Edit2, Play, X, AlertTriangle, RefreshCw, Lock } from 'lucide-react';
+import { Heart, Search, Shield, Settings, Palette, Menu, FolderTree, ArrowDownAZ, LayoutTemplate, ChevronRight, ChevronLeft, ArrowLeft, Trash2, Edit2, Play, X, AlertTriangle, RefreshCw, Lock, UploadCloud, Loader2, Download, Upload, Activity } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { authenticateGoogleDrive, uploadVideoToDrive } from '../lib/google-drive';
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 
 /**
@@ -140,8 +141,28 @@ export const VaultDashboard: React.FC = () => {
   const [videoError, setVideoError] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
+  // Edit Modal State
+  const [editingItem, setEditingItem] = useState<VideoData | null>(null);
+
+  // Bulk Operations State
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [lastSelectedUrl, setLastSelectedUrl] = useState<string | null>(null);
+  const [bulkProgress, setBulkProgress] = useState<{current: number, total: number, active: boolean}>({current: 0, total: 0, active: false});
+  // Scanner State
+  const [scannerState, setScannerState] = useState<{
+    active: boolean;
+    current: number;
+    total: number;
+    deadItems: VideoData[];
+    duplicates: VideoData[];
+    finished: boolean;
+  } | null>(null);
+
   // PIN Settings
   const [pinSettings, setPinSettings] = useState<any>(null);
+
+  // Collections State
+  const [activeCollection, setActiveCollection] = useState<string | null>(null);
 
   // Browser Sync State
   const [isSyncing, setIsSyncing] = useState(false);
@@ -201,6 +222,255 @@ export const VaultDashboard: React.FC = () => {
      setPinSettings(updated);
   };
 
+  const [uploadingItem, setUploadingItem] = useState<string | null>(null);
+
+  const handleExportVault = async () => {
+    try {
+      const videos = await getSavedVideos();
+      const exportData = {
+        version: 1,
+        timestamp: Date.now(),
+        videos,
+      };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+      const dlAnchorElem = document.createElement('a');
+      dlAnchorElem.setAttribute("href", dataStr);
+      dlAnchorElem.setAttribute("download", `vault-backup-${new Date().toISOString().split('T')[0]}.json`);
+      dlAnchorElem.click();
+    } catch(e) {
+      console.error(e);
+      alert("Failed to export vault data.");
+    }
+  };
+
+  const handleImportVault = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const json = JSON.parse(evt.target?.result as string);
+        let importedVideos: VideoData[] = [];
+        if (Array.isArray(json)) {
+          importedVideos = json;
+        } else if (json.videos && Array.isArray(json.videos)) {
+          importedVideos = json.videos;
+        }
+
+        if (importedVideos.length === 0) {
+          alert("No valid vault items found in JSON.");
+          return;
+        }
+
+        const confirmMode = window.confirm(
+          `Found ${importedVideos.length} items.\nClick OK to OVERWRITE your current vault.\nClick Cancel to MERGE with current items.`
+        );
+
+        let finalSet = importedVideos;
+        
+        if (!confirmMode) {
+           const existing = await getSavedVideos();
+           const merged = [...existing, ...importedVideos];
+           finalSet = Array.from(new Map(merged.map(item => [item.url, item])).values());
+        }
+
+        await saveVideos(finalSet);
+        setItems(finalSet);
+        alert(`Successfully imported! Vault now has ${finalSet.length} items.`);
+
+      } catch (err) {
+        console.error(err);
+        alert("Invalid or corrupted JSON backup file.");
+      }
+      if (e.target) e.target.value = '';
+    };
+    reader.readAsText(file);
+  };
+
+  const handleDriveUpload = async (fav: VideoData) => {
+    if (!fav.rawVideoSrc) {
+      alert('No video source available for this item.');
+      return;
+    }
+
+    setUploadingItem(fav.url);
+    try {
+      // 1. Authenticate
+      const token = await authenticateGoogleDrive();
+      
+      // 2. Fetch the video blob
+      const res = await fetch(fav.rawVideoSrc);
+      const blob = await res.blob();
+      
+      // 3. Upload to Google Drive
+      const filename = fav.title ? fav.title + '.mp4' : 'Untitled-Video.mp4';
+      await uploadVideoToDrive(token, blob, filename);
+      
+      alert('Successfully saved to Google Drive!');
+    } catch (err: any) {
+      console.error(err);
+      alert('Failed to upload to Google Drive: ' + err.message);
+    } finally {
+      setUploadingItem(null);
+    }
+  };
+
+  const toggleSelection = (url: string, multi: boolean) => {
+    setSelectedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(url)) {
+        next.delete(url);
+      } else {
+        next.add(url);
+      }
+      return next;
+    });
+  };
+
+  const runHealthScan = async () => {
+    setScannerState({ active: true, current: 0, total: items.length, deadItems: [], duplicates: [], finished: false });
+    const seenUrls = new Set<string>();
+    const duplicates: VideoData[] = [];
+    const deadItems: VideoData[] = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      let isDead = false;
+
+      // 1. Deduplication Check
+      if (seenUrls.has(item.url)) {
+        duplicates.push(item);
+      } else {
+        seenUrls.add(item.url);
+      }
+
+      // 2. Dead Link Check (404s mostly on rawVideoSrc)
+      if (item.rawVideoSrc && !item.rawVideoSrc.startsWith('blob:')) {
+        try {
+          // Send a super fast HEAD request, no cors blocks on extension level generally but catch errors
+          const res = await fetch(item.rawVideoSrc, { method: 'HEAD', cache: 'no-store' });
+          if (res.status === 404 || res.status === 410) {
+            isDead = true;
+            deadItems.push(item);
+          }
+        } catch (e) {
+            // Might be unreachable or CORS, don't automatically delete but can mark dead if we want
+            // To be entirely safe, we only mark hard 404s or 410s
+        }
+      } else if (!item.rawVideoSrc) {
+        // If it's a bookmark with just URL, check the URL
+        try {
+          const res = await fetch(item.url, { method: 'HEAD', cache: 'no-store' });
+          if (res.status === 404 || res.status === 410) {
+             isDead = true;
+             deadItems.push(item);
+          }
+        } catch(e) {}
+      }
+
+      setScannerState(prev => prev ? { ...prev, current: i + 1, deadItems, duplicates } : null);
+    }
+
+    setScannerState(prev => prev ? { ...prev, active: false, finished: true } : null);
+  };
+
+  const handleLocalDownload = async (fav: VideoData) => {
+    if (!fav.rawVideoSrc) {
+      alert('No video source available for this item.');
+      return;
+    }
+    try {
+      let ext = '.mp4';
+      if (fav.type === 'audio') ext = '.mp3';
+      else if (fav.type === 'image') ext = '.jpg';
+      else if (fav.type === 'torrent') ext = '.torrent';
+      const filename = fav.title ? fav.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() + ext : 'vault_media' + ext;
+      await browser.downloads.download({
+        url: fav.rawVideoSrc,
+        filename: filename,
+        saveAs: false
+      });
+    } catch (e) {
+      console.error("Download failed:", e);
+      alert("Failed to start download.");
+    }
+  };
+
+  const handleBulkDownload = async () => {
+    const targets = items.filter(i => selectedItems.has(i.url) && i.rawVideoSrc);
+    if (!targets.length) {
+      alert('No selected items have a valid media source for download.');
+      return;
+    }
+    if (!window.confirm(`Download ${targets.length} items locally?`)) return;
+
+    for (let i = 0; i < targets.length; i++) {
+      const fav = targets[i];
+      let ext = '.mp4';
+      if (fav.type === 'audio') ext = '.mp3';
+      else if (fav.type === 'image') ext = '.jpg';
+      else if (fav.type === 'torrent') ext = '.torrent';
+      const filename = fav.title ? fav.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() + ext : `vault_media_${i}${ext}`;
+      try {
+        await browser.downloads.download({
+          url: fav.rawVideoSrc as string,
+          filename: filename,
+          saveAs: false
+        });
+      } catch(e) {
+          console.error('Failed to download', fav.title, e);
+      }
+    }
+    setSelectedItems(new Set());
+  };
+
+  const handleBulkDriveUpload = async () => {
+    const targets = items.filter(i => selectedItems.has(i.url) && i.rawVideoSrc);
+    if (!targets.length) {
+      alert('No selected items have a valid media source for upload.');
+      return;
+    }
+    
+    if (!window.confirm(`Upload ${targets.length} items to Google Drive?`)) return;
+
+    setBulkProgress({current: 0, total: targets.length, active: true});
+    try {
+      const token = await authenticateGoogleDrive();
+      let count = 0;
+      for (const fav of targets) {
+        try {
+          if (!fav.rawVideoSrc) continue;
+          const res = await fetch(fav.rawVideoSrc);
+          const blob = await res.blob();
+          let ext = '.mp4';
+          if (fav.type === 'audio') ext = '.mp3';
+          else if (fav.type === 'image') ext = '.jpg';
+          else if (fav.type === 'torrent') ext = '.torrent';
+          const filename = fav.title ? fav.title + ext : 'Untitled-Media' + ext;
+          await uploadVideoToDrive(token, blob, filename);
+          count++;
+          setBulkProgress(p => ({...p, current: count}));
+        } catch(e) {
+          console.error('Failed on', fav.title, e);
+        }
+      }
+      alert(`Successfully backed up ${count}/${targets.length} items to Drive!`);
+      setSelectedItems(new Set());
+    } catch(err: any) {
+       alert('Google Drive sync failed to start: ' + err.message);
+    } finally {
+       setBulkProgress({current: 0, total: 0, active: false});
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Are you sure you want to delete ${selectedItems.size} items forever?`)) return;
+    const remaining = items.filter(i => !selectedItems.has(i.url));
+    await saveVideos(remaining);
+    setItems(remaining);
+    setSelectedItems(new Set());
+  };
+
   const cycleTheme = () => {
     const nextSkin = currentSkin === 9 ? 1 : currentSkin + 1;
     setCurrentSkin(nextSkin);
@@ -219,8 +489,13 @@ export const VaultDashboard: React.FC = () => {
     }
   };
 
+  const collectionsList = useMemo(() => {
+    return Array.from(new Set(items.map(i => i.collection).filter(Boolean) as string[])).sort();
+  }, [items]);
+
   const filtered = useMemo(() => {
     return items.filter(f => {
+      if (activeCollection && f.collection !== activeCollection) return false;
       if (!search) return true;
       const targetValue = f[searchField];
       if (targetValue === null || targetValue === undefined) return false;
@@ -372,6 +647,27 @@ export const VaultDashboard: React.FC = () => {
         </div>
       </header>
 
+      {/* BULK ACTION BAR */}
+      {selectedItems.size > 0 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 bg-vault-cardBg border border-vault-accent shadow-2xl rounded-full px-6 py-3 flex items-center gap-4 animate-in slide-in-from-bottom-10">
+           <span className="text-vault-text font-bold text-sm">
+             <span className="text-vault-accent">{selectedItems.size}</span> Items Selected
+           </span>
+           <div className="h-4 w-px bg-vault-border mx-2"></div>
+           <button onClick={() => setSelectedItems(new Set())} className="text-xs font-bold text-vault-muted hover:text-vault-text transition-colors">Clear</button>
+           <button onClick={handleBulkDelete} className="vault-btn bg-red-900/40 text-red-400 border-red-900/50 hover:bg-red-900/60 px-3 py-1.5 text-xs">
+             <Trash2 size={12} className="inline mr-1"/> Delete All
+           </button>
+           <button onClick={handleBulkDriveUpload} disabled={bulkProgress.active} className="vault-btn px-3 py-1.5 text-xs bg-blue-900/40 text-blue-400 border-blue-900/50 hover:bg-blue-900/60 disabled:opacity-50">
+             {bulkProgress.active ? <Loader2 size={12} className="inline mr-1 animate-spin" /> : <UploadCloud size={12} className="inline mr-1" />}
+             {bulkProgress.active ? `Uploading (${bulkProgress.current}/${bulkProgress.total})...` : 'To GDrive'}
+           </button>
+           <button onClick={handleBulkDownload} disabled={bulkProgress.active} className="vault-btn px-3 py-1.5 text-xs bg-green-900/40 text-green-400 border-green-900/50 hover:bg-green-900/60 disabled:opacity-50">
+             <Download size={12} className="inline mr-1"/> Local Backup
+           </button>
+        </div>
+      )}
+
       {/* VIEWPORT */}
       <div className="flex flex-1 overflow-hidden relative">
         
@@ -414,6 +710,32 @@ export const VaultDashboard: React.FC = () => {
                 <option value="Hostname">Source Hostname</option>
               </select>
             </div>
+
+            {/* Collections */}
+            <div>
+              <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center justify-between mb-2">
+                <span className="flex items-center gap-2"><FolderTree size={14} className="text-vault-accent" /> Collections</span>
+              </label>
+              <div className="space-y-1">
+                <button
+                  onClick={() => setActiveCollection(null)}
+                  className={`w-full text-left p-1.5 text-xs rounded transition-all ${!activeCollection ? 'bg-vault-accent/20 text-vault-accent font-bold' : 'text-vault-text hover:bg-vault-cardBg'}`}
+                >
+                  All Items
+                </button>
+                {collectionsList.map(col => (
+                  <button
+                    key={col}
+                    onClick={() => setActiveCollection(col)}
+                    className={`w-full text-left p-1.5 text-xs rounded transition-all truncate ${activeCollection === col ? 'bg-vault-accent/20 text-vault-accent font-bold' : 'text-vault-text hover:bg-vault-cardBg'}`}
+                  >
+                    {col}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <hr className="border-vault-border opacity-50 my-2" />
 
             {/* Sorting */}
             <div className="space-y-2">
@@ -633,7 +955,7 @@ export const VaultDashboard: React.FC = () => {
 
                   {/* Section Grid */}
                   <div className={cn(
-                    "grid gap-4 md:gap-6",
+                    "grid gap-2 md:gap-4 lg:gap-6",
                     viewClasses[viewSize as keyof typeof viewClasses]
                   )}>
                     {displayItems.map((fav, idx) => (
@@ -657,7 +979,7 @@ export const VaultDashboard: React.FC = () => {
                                 window.open(fav.url, '_blank');
                               }
                             }}
-                            className="relative w-full h-40 flex-none bg-vault-cardBg/50 overflow-hidden cursor-pointer group/thumb border-b border-vault-border rounded-t-lg"
+                            className={cn("relative flex-none bg-vault-cardBg/50 overflow-hidden cursor-pointer group/thumb", viewSize === 1 ? "w-40 h-full border-r border-vault-border" : "w-full aspect-video border-b border-vault-border rounded-t-lg")}
                           >
                             {fav.type === 'video' ? (
                               <PreviewThumb video={fav} />
@@ -717,16 +1039,16 @@ export const VaultDashboard: React.FC = () => {
                             <div className="absolute bottom-2 left-2 z-20 opacity-0 group-hover/thumb:opacity-100 transition-opacity pointer-events-none">
                               <div className="flex items-center gap-1.5 bg-black/80 px-2 py-1 rounded text-[10px] font-mono font-bold text-vault-accent border border-vault-accent/30 backdrop-blur-sm">
                                 <span className="w-1.5 h-1.5 rounded-full bg-vault-accent animate-pulse" />
-                                {fav.type === 'video' ? 'SCANNING' : 'LINK'}
+                                {fav.type === 'video' ? 'SCANNING' : fav.type.toUpperCase()}
                               </div>
                             </div>
                           </div>
                         )}
 
                         {/* DETAILS AREA */}
-                        <div className={cn("z-10 relative flex flex-col flex-1", viewSize === 1 ? "flex-row items-center justify-between w-full" : "p-4")}>
+                        <div className={cn("z-10 relative flex flex-col flex-1", viewSize === 0 ? "flex-row items-center justify-between w-full" : viewSize === 1 ? "flex-row items-center justify-between w-full p-4" : "p-4 flex flex-col flex-1")}>
                           
-                          <div className={cn("flex justify-between items-start mb-2", viewSize === 1 && "mb-0")}>
+                          <div className={cn("flex justify-between items-start mb-2", (viewSize === 0 || viewSize === 1) && "hidden")}>
                             <div className="flex gap-2 items-center">
                               <span className="text-[10px] uppercase font-bold tracking-widest text-vault-bg bg-vault-muted px-2 py-0.5 rounded-sm">
                                 {viewSize > 1 ? `#${idx + 1 + (currentPage * itemsPerPage)}` : 'V-ID'}
@@ -735,8 +1057,8 @@ export const VaultDashboard: React.FC = () => {
                             {/* Removed redundant buttons from here in grid view, kept for detail list if needed but instruction asked for thumb corners */}
                           </div>
                           
-                          <div className={cn("flex-1", viewSize === 1 ? "flex items-center justify-between w-full ml-4" : "flex flex-col")}>
-                            <div className={viewSize === 1 ? "flex-1 mr-4" : ""}>
+                          <div className={cn("flex-1", (viewSize === 0 || viewSize === 1) ? "flex items-center justify-between w-full ml-4" : "flex flex-col")}>
+                            <div className={(viewSize === 0 || viewSize === 1) ? "flex-1 mr-4 min-w-0" : "flex-1"}>
                               <h3 className={cn(
                                 "font-bold mb-1 leading-snug cursor-pointer hover:text-vault-accent transition-colors",
                                 viewSize === 1 ? "text-base line-clamp-1" : "text-[15px] line-clamp-2"
@@ -748,7 +1070,7 @@ export const VaultDashboard: React.FC = () => {
                               </p>
                             </div>
                             
-                            {viewSize > 1 && (
+                            {viewSize > 0 && (
                               <div className="mt-3 space-y-1 mb-2 flex-1">
                                 {fav.author && (
                                   <p className="text-[11px] text-vault-text line-clamp-1"><span className="text-vault-muted">By:</span> {fav.author}</p>
@@ -779,7 +1101,7 @@ export const VaultDashboard: React.FC = () => {
 
                           <div className={cn(
                             "flex items-center justify-between border-vault-border pt-3 mt-auto",
-                            viewSize === 1 ? "border-none ml-4 gap-4 mt-0 pt-0" : "border-t"
+                            (viewSize === 0 || viewSize === 1) ? "border-none ml-4 gap-4 mt-0 pt-0" : "border-t mt-auto"
                           )}>
                             <span className="text-[11px] font-semibold text-vault-muted tracking-wider">
                               {new Date(fav.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric'})}
@@ -815,6 +1137,206 @@ export const VaultDashboard: React.FC = () => {
           </div>
         </main>
       </div>
+
+      {/* EDIT MODAL */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-vault-bg border border-vault-border rounded-lg shadow-2xl w-full max-w-md p-6 relative flex flex-col gap-4 animate-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setEditingItem(null)} 
+              className="absolute top-4 right-4 vault-btn p-1 border-none hover:bg-vault-cardBg"
+            >
+              <X size={16} className="text-vault-muted" />
+            </button>
+            <h2 className="text-lg font-bold text-vault-text flex items-center gap-2">
+              <Edit2 size={18} className="text-vault-accent" /> Edit Vault Item
+            </h2>
+            <div className="flex flex-col gap-3 mt-2">
+              <div>
+                <label className="text-xs font-bold text-vault-muted uppercase tracking-widest block mb-1">Title</label>
+                <input 
+                  type="text" 
+                  value={editingItem.title} 
+                  onChange={e => setEditingItem({...editingItem, title: e.target.value})}
+                  className="w-full bg-vault-cardBg border border-vault-border rounded p-2 text-sm text-vault-text outline-none focus:border-vault-accent" 
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-vault-muted uppercase tracking-widest block mb-1">Collection</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Action Movies"
+                  value={editingItem.collection || ''} 
+                  onChange={e => setEditingItem({...editingItem, collection: e.target.value})}
+                  className="w-full bg-vault-cardBg border border-vault-border rounded p-2 text-sm text-vault-text outline-none focus:border-vault-accent" 
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-vault-muted uppercase tracking-widest block mb-1">Tags (Comma Separated)</label>
+                <input 
+                  type="text" 
+                  value={(editingItem.tags || []).join(', ')} 
+                  onChange={e => setEditingItem({...editingItem, tags: e.target.value.split(',').map(t=>t.trim()).filter(Boolean)})}
+                  className="w-full bg-vault-cardBg border border-vault-border rounded p-2 text-sm text-vault-text outline-none focus:border-vault-accent" 
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button 
+                onClick={() => setEditingItem(null)} 
+                className="px-4 py-2 rounded text-xs font-bold text-vault-muted hover:text-vault-text transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={async () => {
+                   const updatedVideos = items.map(v => v.url === editingItem.url ? editingItem : v);
+                   await saveVideos(updatedVideos);
+                   setItems(updatedVideos);
+                   setEditingItem(null);
+                }}
+                className="vault-btn font-bold px-4 py-2"
+              >
+                Save Hooks
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SCANNER MODAL */}
+      {scannerState && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-vault-bg border border-vault-border rounded-lg shadow-2xl w-full max-w-lg p-6 relative flex flex-col gap-4 animate-in zoom-in-95 duration-200">
+            {!scannerState.active && (
+              <button 
+                onClick={() => setScannerState(null)} 
+                className="absolute top-4 right-4 vault-btn p-1 border-none hover:bg-vault-cardBg"
+              >
+                <X size={16} className="text-vault-muted" />
+              </button>
+            )}
+            
+            <h2 className="text-lg font-bold text-vault-text flex items-center gap-2">
+              <Activity size={18} className={scannerState.active ? "text-vault-accent animate-pulse" : "text-vault-accent"} /> 
+              Vault Health Scanner
+            </h2>
+
+            <div className="bg-vault-cardBg border border-vault-border rounded p-4 flex flex-col gap-2">
+              <div className="flex justify-between items-center text-xs font-bold text-vault-muted uppercase">
+                <span>Progress</span>
+                <span>{scannerState.current} / {scannerState.total}</span>
+              </div>
+              <div className="w-full h-2 bg-vault-bg rounded-full overflow-hidden">
+                <div className="h-full bg-vault-accent transition-all duration-300" style={{width: `${(scannerState.current / Math.max(scannerState.total, 1)) * 100}%`}}></div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+               <div className="bg-vault-cardBg border border-vault-border rounded p-3 text-center">
+                 <div className="text-2xl font-black text-red-500">{scannerState.deadItems.length}</div>
+                 <div className="text-[10px] text-vault-muted font-bold uppercase tracking-wider">Dead Links (404)</div>
+               </div>
+               <div className="bg-vault-cardBg border border-vault-border rounded p-3 text-center">
+                 <div className="text-2xl font-black text-yellow-500">{scannerState.duplicates.length}</div>
+                 <div className="text-[10px] text-vault-muted font-bold uppercase tracking-wider">Duplicates</div>
+               </div>
+            </div>
+
+            {scannerState.finished && (scannerState.deadItems.length > 0 || scannerState.duplicates.length > 0) && (
+              <div className="flex flex-col gap-2 mt-2">
+                <button 
+                  onClick={async () => {
+                     const toDelete = new Set([...scannerState.deadItems.map(i=>i.url), ...scannerState.duplicates.map(i=>i.url)]);
+                     if (window.confirm(`Purge ${toDelete.size} dead/duplicate items safely?`)) {
+                       const remaining = items.filter(i => !toDelete.has(i.url));
+                       await saveVideos(remaining);
+                       setItems(remaining);
+                       setScannerState(null);
+                     }
+                  }}
+                  className="vault-btn font-bold px-4 py-2 bg-red-900/40 border-red-900/50 hover:bg-red-900/60 text-red-400"
+                >
+                  <Trash2 size={16} className="inline mr-2" />
+                  Purge Anomalies ({new Set([...scannerState.deadItems.map(i=>i.url), ...scannerState.duplicates.map(i=>i.url)]).size})
+                </button>
+              </div>
+            )}
+            {scannerState.finished && scannerState.deadItems.length === 0 && scannerState.duplicates.length === 0 && (
+              <div className="text-center text-green-500 font-bold text-sm py-2">
+                 Everything looks healthy!
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* SCANNER MODAL */}
+      {scannerState && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-vault-bg border border-vault-border rounded-lg shadow-2xl w-full max-w-lg p-6 relative flex flex-col gap-4 animate-in zoom-in-95 duration-200">
+            {!scannerState.active && (
+              <button 
+                onClick={() => setScannerState(null)} 
+                className="absolute top-4 right-4 vault-btn p-1 border-none hover:bg-vault-cardBg"
+              >
+                <X size={16} className="text-vault-muted" />
+              </button>
+            )}
+            
+            <h2 className="text-lg font-bold text-vault-text flex items-center gap-2">
+              <Activity size={18} className={scannerState.active ? "text-vault-accent animate-pulse" : "text-vault-accent"} /> 
+              Vault Health Scanner
+            </h2>
+
+            <div className="bg-vault-cardBg border border-vault-border rounded p-4 flex flex-col gap-2">
+              <div className="flex justify-between items-center text-xs font-bold text-vault-muted uppercase">
+                <span>Progress</span>
+                <span>{scannerState.current} / {scannerState.total}</span>
+              </div>
+              <div className="w-full h-2 bg-vault-bg rounded-full overflow-hidden">
+                <div className="h-full bg-vault-accent transition-all duration-300" style={{width: `${(scannerState.current / Math.max(scannerState.total, 1)) * 100}%`}}></div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+               <div className="bg-vault-cardBg border border-vault-border rounded p-3 text-center">
+                 <div className="text-2xl font-black text-red-500">{scannerState.deadItems.length}</div>
+                 <div className="text-[10px] text-vault-muted font-bold uppercase tracking-wider">Dead Links (404)</div>
+               </div>
+               <div className="bg-vault-cardBg border border-vault-border rounded p-3 text-center">
+                 <div className="text-2xl font-black text-yellow-500">{scannerState.duplicates.length}</div>
+                 <div className="text-[10px] text-vault-muted font-bold uppercase tracking-wider">Duplicates</div>
+               </div>
+            </div>
+
+            {scannerState.finished && (scannerState.deadItems.length > 0 || scannerState.duplicates.length > 0) && (
+              <div className="flex flex-col gap-2 mt-2">
+                <button 
+                  onClick={async () => {
+                     const toDelete = new Set([...scannerState.deadItems.map(i=>i.url), ...scannerState.duplicates.map(i=>i.url)]);
+                     if (window.confirm(`Purge ${toDelete.size} dead/duplicate items safely?`)) {
+                       const remaining = items.filter(i => !toDelete.has(i.url));
+                       await saveVideos(remaining);
+                       setItems(remaining);
+                       setScannerState(null);
+                     }
+                  }}
+                  className="vault-btn font-bold px-4 py-2 bg-red-900/40 border-red-900/50 hover:bg-red-900/60 text-red-400"
+                >
+                  <Trash2 size={16} className="inline mr-2" />
+                  Purge Anomalies ({new Set([...scannerState.deadItems.map(i=>i.url), ...scannerState.duplicates.map(i=>i.url)]).size})
+                </button>
+              </div>
+            )}
+            {scannerState.finished && scannerState.deadItems.length === 0 && scannerState.duplicates.length === 0 && (
+              <div className="text-center text-green-500 font-bold text-sm py-2">
+                 Everything looks healthy!
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* VIDEO PLAYER MODAL */}
       {playingVideo && (

@@ -5,7 +5,7 @@ export const VideoDataSchema = z.object({
     title: z.string().min(1).default('Untitled'),
     thumbnail: z.string().optional(),
     timestamp: z.number().default(() => Date.now()),
-    type: z.enum(['video', 'image', 'link']).default('link'),
+    type: z.enum(['video', 'image', 'link', 'audio', 'torrent', 'bookmark']).default('link'),
     domain: z.string().default('Unknown'),
     duration: z.union([z.string(), z.number()]).nullable().optional(),
     views: z.string().nullable().optional(),
@@ -24,6 +24,7 @@ export const VideoDataSchema = z.object({
     quality: z.string().nullable().optional(),
     size: z.string().nullable().optional(),
     length: z.union([z.string(), z.number()]).nullable().optional(),
+    collection: z.string().nullable().optional(),
 });
 export const StorageSchema = z.object({
     savedVideos: z.array(VideoDataSchema).default([])
