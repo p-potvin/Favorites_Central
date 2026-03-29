@@ -1,0 +1,1480 @@
+
+> favorites_central@2.0.0 test
+> vitest run
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90mC:/Users/Administrator/Desktop/Github Repos/Projects/favorites_central[39m
+
+ [32mÔ£ô[39m src/lib/storage-vault.test.js [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32mÔ£ô[39m src/lib/storage-vault.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [31mÔØ»[39m tests/bunkr.spec.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31mÔØ»[39m tests/topvid.spec.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31mÔØ»[39m tests/capture.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31mÔØ»[39m tests/extension.spec.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31mÔØ»[39m tests/capture.spec.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31mÔØ»[39m src/components/Dashboard.test.tsx [2m([22m[2m4 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 6314[2mms[22m[39m
+     [32mÔ£ô[39m renders the Dashboard header and initial state[32m 123[2mms[22m[39m
+[31m     [31m├ù[31m loads and displays saved items[39m[33m 3032[2mms[22m[39m
+[31m     [31m├ù[31m filters items based on search input[39m[33m 3018[2mms[22m[39m
+     [32mÔ£ô[39m toggles the sidebar layout[32m 139[2mms[22m[39m
+ [31mÔØ»[39m src/components/Dashboard.test.js [2m([22m[2m4 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 6329[2mms[22m[39m
+     [32mÔ£ô[39m renders the Dashboard header and initial state[32m 125[2mms[22m[39m
+[31m     [31m├ù[31m loads and displays saved items[39m[33m 3039[2mms[22m[39m
+[31m     [31m├ù[31m filters items based on search input[39m[33m 3026[2mms[22m[39m
+     [32mÔ£ô[39m toggles the sidebar layout[32m 136[2mms[22m[39m
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ» Failed Suites 5 ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»
+
+ FAIL  tests/bunkr.spec.ts [ tests/bunkr.spec.ts ]
+Error: Playwright Test did not expect test.describe() to be called here.
+Most common reasons include:
+- You are calling test.describe() in a configuration file.
+- You are calling test.describe() in a file that is imported by the configuration file.
+- You have two different versions of @playwright/test. This usually happens
+  when one of the dependencies in your package.json depends on @playwright/test.
+ ÔØ» TestTypeImpl._currentSuite node_modules/playwright/lib/common/testType.js:75:13
+ ÔØ» TestTypeImpl._describe node_modules/playwright/lib/common/testType.js:115:24
+ ÔØ» Function.describe node_modules/playwright/lib/transform/transform.js:282:12
+ ÔØ» tests/bunkr.spec.ts:3:6
+      1| import { test, expect } from './extension.fixture';
+      2|
+      3| test.describe('Bunkr Video Capture', () => {
+       |      ^
+      4|     test('should capture video source from bunkr', async ({ page, exteÔÇª
+      5|         console.log('Navigating to bunkr.cr/a/ANmmWTVZ...');
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[1/9]ÔÄ»
+
+ FAIL  tests/capture.spec.ts [ tests/capture.spec.ts ]
+Error: Playwright Test did not expect test.describe() to be called here.
+Most common reasons include:
+- You are calling test.describe() in a configuration file.
+- You are calling test.describe() in a file that is imported by the configuration file.
+- You have two different versions of @playwright/test. This usually happens
+  when one of the dependencies in your package.json depends on @playwright/test.
+ ÔØ» TestTypeImpl._currentSuite node_modules/playwright/lib/common/testType.js:75:13
+ ÔØ» TestTypeImpl._describe node_modules/playwright/lib/common/testType.js:115:24
+ ÔØ» Function.describe node_modules/playwright/lib/transform/transform.js:282:12
+ ÔØ» tests/capture.spec.ts:3:6
+      1| import { test, expect } from './extension.fixture';
+      2|
+      3| test.describe('Video Capture E2E', () => {
+       |      ^
+      4|     test('should capture m3u8 from topvid.tv via shortcut', async ({ pÔÇª
+      5|         // 1. Navigate to topvid.tv
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[2/9]ÔÄ»
+
+ FAIL  tests/capture.test.ts [ tests/capture.test.ts ]
+Error: Playwright Test did not expect test.describe() to be called here.
+Most common reasons include:
+- You are calling test.describe() in a configuration file.
+- You are calling test.describe() in a file that is imported by the configuration file.
+- You have two different versions of @playwright/test. This usually happens
+  when one of the dependencies in your package.json depends on @playwright/test.
+ ÔØ» TestTypeImpl._currentSuite node_modules/playwright/lib/common/testType.js:75:13
+ ÔØ» TestTypeImpl._describe node_modules/playwright/lib/common/testType.js:115:24
+ ÔØ» Function.describe node_modules/playwright/lib/transform/transform.js:282:12
+ ÔØ» tests/capture.test.ts:3:6
+      1| import { test, expect } from './extension.fixture';
+      2|
+      3| test.describe('Video Capture E2E', () => {
+       |      ^
+      4|     test('should capture m3u8 from topvid.tv via shortcut', async ({ pÔÇª
+      5|         await page.goto('https://topvid.tv', { waitUntil: 'networkidleÔÇª
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[3/9]ÔÄ»
+
+ FAIL  tests/extension.spec.ts [ tests/extension.spec.ts ]
+Error: Playwright Test did not expect test.describe() to be called here.
+Most common reasons include:
+- You are calling test.describe() in a configuration file.
+- You are calling test.describe() in a file that is imported by the configuration file.
+- You have two different versions of @playwright/test. This usually happens
+  when one of the dependencies in your package.json depends on @playwright/test.
+ ÔØ» TestTypeImpl._currentSuite node_modules/playwright/lib/common/testType.js:75:13
+ ÔØ» TestTypeImpl._describe node_modules/playwright/lib/common/testType.js:115:24
+ ÔØ» Function.describe node_modules/playwright/lib/transform/transform.js:282:12
+ ÔØ» tests/extension.spec.ts:3:6
+      1| import { test, expect } from './extension.fixture';
+      2|
+      3| test.describe('Favorites Central Extension Tests', () => {
+       |      ^
+      4|
+      5|   test('extension scripts should be loaded and responsive', async ({ pÔÇª
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[4/9]ÔÄ»
+
+ FAIL  tests/topvid.spec.ts [ tests/topvid.spec.ts ]
+Error: Playwright Test did not expect test.describe() to be called here.
+Most common reasons include:
+- You are calling test.describe() in a configuration file.
+- You are calling test.describe() in a file that is imported by the configuration file.
+- You have two different versions of @playwright/test. This usually happens
+  when one of the dependencies in your package.json depends on @playwright/test.
+ ÔØ» TestTypeImpl._currentSuite node_modules/playwright/lib/common/testType.js:75:13
+ ÔØ» TestTypeImpl._describe node_modules/playwright/lib/common/testType.js:115:24
+ ÔØ» Function.describe node_modules/playwright/lib/transform/transform.js:282:12
+ ÔØ» tests/topvid.spec.ts:3:6
+      1| import { test, expect } from './extension.fixture';
+      2|
+      3| test.describe('Topvid Video Capture', () => {
+       |      ^
+      4|     test.setTimeout(90000);
+      5|     test('should capture m3u8 source from topvid', async ({ page, exteÔÇª
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[5/9]ÔÄ»
+
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ» Failed Tests 4 ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»
+
+ FAIL  src/components/Dashboard.test.js > Dashboard Component > loads and displays saved items
+TestingLibraryElementError: Found multiple elements with the text: 2
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+<strong
+  class="text-vault-accent"
+>
+  2
+</strong>
+
+Ignored nodes: comments, script, style
+<strong
+  class="text-vault-text"
+>
+  2
+</strong>
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="flex flex-col h-screen overflow-hidden bg-vault-bg text-vault-text font-sans antialiased transition-colors duration-500"
+    >
+      <header
+        class="flex-none h-16 flex items-center justify-between px-4 md:px-6 z-20 vault-card rounded-none border-t-0 border-x-0 border-b shadow-sm relative"
+      >
+        <div
+          class="flex items-center gap-4"
+        >
+          <button
+            class="vault-btn p-1.5 h-8 w-8 flex items-center justify-center border-none hover:bg-vault-cardBg"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-shield text-vault-accent"
+              fill="none"
+              height="20"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="20"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+              />
+            </svg>
+          </button>
+          <div
+            class="flex items-center gap-3"
+          >
+            <div
+              class="text-vault-accent"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-shield"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                />
+              </svg>
+            </div>
+            <div
+              class="leading-tight"
+            >
+              <h1
+                class="text-xl font-bold tracking-tight flex items-center gap-1"
+              >
+                Vault
+                <span
+                  class="text-vault-accent font-light"
+                >
+                  Central
+                </span>
+              </h1>
+              <p
+                class="text-[9px] text-vault-muted font-medium tracking-wider uppercase"
+              >
+                Secure Media Vault // 
+                <a
+                  class="hover:text-vault-accent underline transition-colors"
+                  href="https://vaultwares.com"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  VaultWares.com
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div
+          class="flex items-center gap-3"
+        >
+          <div
+            class="relative group flex items-center gap-2"
+          >
+            <select
+              class="bg-vault-cardBg border border-vault-border rounded-l-full px-3 py-1.5 text-xs text-vault-text focus:border-vault-accent outline-none appearance-none"
+            >
+              <option
+                value="title"
+              >
+                Title
+              </option>
+              <option
+                value="author"
+              >
+                Author
+              </option>
+              <option
+                value="domain"
+              >
+                Domain
+              </option>
+              <option
+                value="url"
+              >
+                URL
+              </option>
+              <option
+                value="quality"
+              >
+                Quality
+              </option>
+              <option
+                value="resolution"
+              >
+                Res
+              </option>
+              <option
+                value="description"
+              >
+                Desc
+              </option>
+              <option
+                value="tags"
+              >
+                Tags
+              </option>
+            </select>
+            <div
+              class="relative flex-1"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-search absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted group-focus-within:text-vault-accent transition-colors"
+                fill="none"
+                height="14"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="14"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                ...
+
+Ignored nodes: comments, script, style
+<html
+  class="dark"
+  data-theme="vault-theme-gold-dark"
+>
+  <head />
+  <body>
+    <div>
+      <div
+        class="flex flex-col h-screen overflow-hidden bg-vault-bg text-vault-text font-sans antialiased transition-colors duration-500"
+      >
+        <header
+          class="flex-none h-16 flex items-center justify-between px-4 md:px-6 z-20 vault-card rounded-none border-t-0 border-x-0 border-b shadow-sm relative"
+        >
+          <div
+            class="flex items-center gap-4"
+          >
+            <button
+              class="vault-btn p-1.5 h-8 w-8 flex items-center justify-center border-none hover:bg-vault-cardBg"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-shield text-vault-accent"
+                fill="none"
+                height="20"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="20"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                />
+              </svg>
+            </button>
+            <div
+              class="flex items-center gap-3"
+            >
+              <div
+                class="text-vault-accent"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-shield"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2.5"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                  />
+                </svg>
+              </div>
+              <div
+                class="leading-tight"
+              >
+                <h1
+                  class="text-xl font-bold tracking-tight flex items-center gap-1"
+                >
+                  Vault
+                  <span
+                    class="text-vault-accent font-light"
+                  >
+                    Central
+                  </span>
+                </h1>
+                <p
+                  class="text-[9px] text-vault-muted font-medium tracking-wider uppercase"
+                >
+                  Secure Media Vault // 
+                  <a
+                    class="hover:text-vault-accent underline transition-colors"
+                    href="https://vaultwares.com"
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    VaultWares.com
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+          <div
+            class="flex items-center gap-3"
+          >
+            <div
+              class="relative group flex items-center gap-2"
+            >
+              <select
+                class="bg-vault-cardBg border border-vault-border rounded-l-full px-3 py-1.5 text-xs text-vault-text focus:border-vault-accent outline-none appearance-none"
+              >
+                <option
+                  value="title"
+                >
+                  Title
+                </option>
+                <option
+                  value="author"
+                >
+                  Author
+                </option>
+                <option
+                  value="domain"
+                >
+                  Domain
+                </option>
+                <option
+                  value="url"
+                >
+                  URL
+                </option>
+                <option
+                  value="quality"
+                >
+                  Quality
+                </option>
+                <option
+                  value="resolution"
+                >
+                  Res
+                </option>
+                <option
+                  value="description"
+                >
+                  Desc
+                </option>
+                <option
+                  value="tags"
+                >
+                  Tags
+                </option>
+              </select>
+              <div
+                class="relative flex-1"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-search absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted group-focus-within:text-vault-accent transition-colors"
+                  fill="none"
+                  height="14"
+                  s...
+ ÔØ» Proxy.waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ÔØ» src/components/Dashboard.test.js:71:15
+     69|         render(_jsx(VaultDashboard, {}));
+     70|         // Check if the "Total Items" count is 2 - this proves re-rendÔÇª
+     71|         await waitFor(() => {
+       |               ^
+     72|             expect(screen.queryByText(/Total Items:/i)).toBeInTheDocumÔÇª
+     73|             const countEl = screen.getByText('2', { selector: 'strong'ÔÇª
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[6/9]ÔÄ»
+
+ FAIL  src/components/Dashboard.test.js > Dashboard Component > filters items based on search input
+TestingLibraryElementError: Found multiple elements with the text: 2
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+<strong
+  class="text-vault-accent"
+>
+  2
+</strong>
+
+Ignored nodes: comments, script, style
+<strong
+  class="text-vault-text"
+>
+  2
+</strong>
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="flex flex-col h-screen overflow-hidden bg-vault-bg text-vault-text font-sans antialiased transition-colors duration-500"
+    >
+      <header
+        class="flex-none h-16 flex items-center justify-between px-4 md:px-6 z-20 vault-card rounded-none border-t-0 border-x-0 border-b shadow-sm relative"
+      >
+        <div
+          class="flex items-center gap-4"
+        >
+          <button
+            class="vault-btn p-1.5 h-8 w-8 flex items-center justify-center border-none hover:bg-vault-cardBg"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-shield text-vault-accent"
+              fill="none"
+              height="20"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="20"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+              />
+            </svg>
+          </button>
+          <div
+            class="flex items-center gap-3"
+          >
+            <div
+              class="text-vault-accent"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-shield"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                />
+              </svg>
+            </div>
+            <div
+              class="leading-tight"
+            >
+              <h1
+                class="text-xl font-bold tracking-tight flex items-center gap-1"
+              >
+                Vault
+                <span
+                  class="text-vault-accent font-light"
+                >
+                  Central
+                </span>
+              </h1>
+              <p
+                class="text-[9px] text-vault-muted font-medium tracking-wider uppercase"
+              >
+                Secure Media Vault // 
+                <a
+                  class="hover:text-vault-accent underline transition-colors"
+                  href="https://vaultwares.com"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  VaultWares.com
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div
+          class="flex items-center gap-3"
+        >
+          <div
+            class="relative group flex items-center gap-2"
+          >
+            <select
+              class="bg-vault-cardBg border border-vault-border rounded-l-full px-3 py-1.5 text-xs text-vault-text focus:border-vault-accent outline-none appearance-none"
+            >
+              <option
+                value="title"
+              >
+                Title
+              </option>
+              <option
+                value="author"
+              >
+                Author
+              </option>
+              <option
+                value="domain"
+              >
+                Domain
+              </option>
+              <option
+                value="url"
+              >
+                URL
+              </option>
+              <option
+                value="quality"
+              >
+                Quality
+              </option>
+              <option
+                value="resolution"
+              >
+                Res
+              </option>
+              <option
+                value="description"
+              >
+                Desc
+              </option>
+              <option
+                value="tags"
+              >
+                Tags
+              </option>
+            </select>
+            <div
+              class="relative flex-1"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-search absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted group-focus-within:text-vault-accent transition-colors"
+                fill="none"
+                height="14"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="14"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                ...
+
+Ignored nodes: comments, script, style
+<html
+  class="dark"
+  data-theme="vault-theme-gold-dark"
+>
+  <head />
+  <body>
+    <div>
+      <div
+        class="flex flex-col h-screen overflow-hidden bg-vault-bg text-vault-text font-sans antialiased transition-colors duration-500"
+      >
+        <header
+          class="flex-none h-16 flex items-center justify-between px-4 md:px-6 z-20 vault-card rounded-none border-t-0 border-x-0 border-b shadow-sm relative"
+        >
+          <div
+            class="flex items-center gap-4"
+          >
+            <button
+              class="vault-btn p-1.5 h-8 w-8 flex items-center justify-center border-none hover:bg-vault-cardBg"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-shield text-vault-accent"
+                fill="none"
+                height="20"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="20"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                />
+              </svg>
+            </button>
+            <div
+              class="flex items-center gap-3"
+            >
+              <div
+                class="text-vault-accent"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-shield"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2.5"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                  />
+                </svg>
+              </div>
+              <div
+                class="leading-tight"
+              >
+                <h1
+                  class="text-xl font-bold tracking-tight flex items-center gap-1"
+                >
+                  Vault
+                  <span
+                    class="text-vault-accent font-light"
+                  >
+                    Central
+                  </span>
+                </h1>
+                <p
+                  class="text-[9px] text-vault-muted font-medium tracking-wider uppercase"
+                >
+                  Secure Media Vault // 
+                  <a
+                    class="hover:text-vault-accent underline transition-colors"
+                    href="https://vaultwares.com"
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    VaultWares.com
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+          <div
+            class="flex items-center gap-3"
+          >
+            <div
+              class="relative group flex items-center gap-2"
+            >
+              <select
+                class="bg-vault-cardBg border border-vault-border rounded-l-full px-3 py-1.5 text-xs text-vault-text focus:border-vault-accent outline-none appearance-none"
+              >
+                <option
+                  value="title"
+                >
+                  Title
+                </option>
+                <option
+                  value="author"
+                >
+                  Author
+                </option>
+                <option
+                  value="domain"
+                >
+                  Domain
+                </option>
+                <option
+                  value="url"
+                >
+                  URL
+                </option>
+                <option
+                  value="quality"
+                >
+                  Quality
+                </option>
+                <option
+                  value="resolution"
+                >
+                  Res
+                </option>
+                <option
+                  value="description"
+                >
+                  Desc
+                </option>
+                <option
+                  value="tags"
+                >
+                  Tags
+                </option>
+              </select>
+              <div
+                class="relative flex-1"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-search absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted group-focus-within:text-vault-accent transition-colors"
+                  fill="none"
+                  height="14"
+                  s...
+ ÔØ» Proxy.waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ÔØ» src/components/Dashboard.test.js:82:15
+     80|         storageVault.getSavedVideos.mockResolvedValue(mockVideos);
+     81|         render(_jsx(VaultDashboard, {}));
+     82|         await waitFor(() => {
+       |               ^
+     83|             expect(screen.getByText('2', { selector: 'strong' })).toBeÔÇª
+     84|         }, { timeout: 3000 });
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[7/9]ÔÄ»
+
+ FAIL  src/components/Dashboard.test.tsx > Dashboard Component > loads and displays saved items
+TestingLibraryElementError: Found multiple elements with the text: 2
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+<strong
+  class="text-vault-accent"
+>
+  2
+</strong>
+
+Ignored nodes: comments, script, style
+<strong
+  class="text-vault-text"
+>
+  2
+</strong>
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="flex flex-col h-screen overflow-hidden bg-vault-bg text-vault-text font-sans antialiased transition-colors duration-500"
+    >
+      <header
+        class="flex-none h-16 flex items-center justify-between px-4 md:px-6 z-20 vault-card rounded-none border-t-0 border-x-0 border-b shadow-sm relative"
+      >
+        <div
+          class="flex items-center gap-4"
+        >
+          <button
+            class="vault-btn p-1.5 h-8 w-8 flex items-center justify-center border-none hover:bg-vault-cardBg"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-shield text-vault-accent"
+              fill="none"
+              height="20"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="20"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+              />
+            </svg>
+          </button>
+          <div
+            class="flex items-center gap-3"
+          >
+            <div
+              class="text-vault-accent"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-shield"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                />
+              </svg>
+            </div>
+            <div
+              class="leading-tight"
+            >
+              <h1
+                class="text-xl font-bold tracking-tight flex items-center gap-1"
+              >
+                Vault
+                <span
+                  class="text-vault-accent font-light"
+                >
+                  Central
+                </span>
+              </h1>
+              <p
+                class="text-[9px] text-vault-muted font-medium tracking-wider uppercase"
+              >
+                Secure Media Vault // 
+                <a
+                  class="hover:text-vault-accent underline transition-colors"
+                  href="https://vaultwares.com"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  VaultWares.com
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div
+          class="flex items-center gap-3"
+        >
+          <div
+            class="relative group flex items-center gap-2"
+          >
+            <select
+              class="bg-vault-cardBg border border-vault-border rounded-l-full px-3 py-1.5 text-xs text-vault-text focus:border-vault-accent outline-none appearance-none"
+            >
+              <option
+                value="title"
+              >
+                Title
+              </option>
+              <option
+                value="author"
+              >
+                Author
+              </option>
+              <option
+                value="domain"
+              >
+                Domain
+              </option>
+              <option
+                value="url"
+              >
+                URL
+              </option>
+              <option
+                value="quality"
+              >
+                Quality
+              </option>
+              <option
+                value="resolution"
+              >
+                Res
+              </option>
+              <option
+                value="description"
+              >
+                Desc
+              </option>
+              <option
+                value="tags"
+              >
+                Tags
+              </option>
+            </select>
+            <div
+              class="relative flex-1"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-search absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted group-focus-within:text-vault-accent transition-colors"
+                fill="none"
+                height="14"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="14"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                ...
+
+Ignored nodes: comments, script, style
+<html
+  class="dark"
+  data-theme="vault-theme-gold-dark"
+>
+  <head />
+  <body>
+    <div>
+      <div
+        class="flex flex-col h-screen overflow-hidden bg-vault-bg text-vault-text font-sans antialiased transition-colors duration-500"
+      >
+        <header
+          class="flex-none h-16 flex items-center justify-between px-4 md:px-6 z-20 vault-card rounded-none border-t-0 border-x-0 border-b shadow-sm relative"
+        >
+          <div
+            class="flex items-center gap-4"
+          >
+            <button
+              class="vault-btn p-1.5 h-8 w-8 flex items-center justify-center border-none hover:bg-vault-cardBg"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-shield text-vault-accent"
+                fill="none"
+                height="20"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="20"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                />
+              </svg>
+            </button>
+            <div
+              class="flex items-center gap-3"
+            >
+              <div
+                class="text-vault-accent"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-shield"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2.5"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                  />
+                </svg>
+              </div>
+              <div
+                class="leading-tight"
+              >
+                <h1
+                  class="text-xl font-bold tracking-tight flex items-center gap-1"
+                >
+                  Vault
+                  <span
+                    class="text-vault-accent font-light"
+                  >
+                    Central
+                  </span>
+                </h1>
+                <p
+                  class="text-[9px] text-vault-muted font-medium tracking-wider uppercase"
+                >
+                  Secure Media Vault // 
+                  <a
+                    class="hover:text-vault-accent underline transition-colors"
+                    href="https://vaultwares.com"
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    VaultWares.com
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+          <div
+            class="flex items-center gap-3"
+          >
+            <div
+              class="relative group flex items-center gap-2"
+            >
+              <select
+                class="bg-vault-cardBg border border-vault-border rounded-l-full px-3 py-1.5 text-xs text-vault-text focus:border-vault-accent outline-none appearance-none"
+              >
+                <option
+                  value="title"
+                >
+                  Title
+                </option>
+                <option
+                  value="author"
+                >
+                  Author
+                </option>
+                <option
+                  value="domain"
+                >
+                  Domain
+                </option>
+                <option
+                  value="url"
+                >
+                  URL
+                </option>
+                <option
+                  value="quality"
+                >
+                  Quality
+                </option>
+                <option
+                  value="resolution"
+                >
+                  Res
+                </option>
+                <option
+                  value="description"
+                >
+                  Desc
+                </option>
+                <option
+                  value="tags"
+                >
+                  Tags
+                </option>
+              </select>
+              <div
+                class="relative flex-1"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-search absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted group-focus-within:text-vault-accent transition-colors"
+                  fill="none"
+                  height="14"
+                  s...
+ ÔØ» Proxy.waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ÔØ» src/components/Dashboard.test.tsx:79:11
+     77|
+     78|     // Check if the "Total Items" count is 2 - this proves re-render hÔÇª
+     79|     await waitFor(() => {
+       |           ^
+     80|       expect(screen.queryByText(/Total Items:/i)).toBeInTheDocument();
+     81|       const countEl = screen.getByText('2', { selector: 'strong' });
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[8/9]ÔÄ»
+
+ FAIL  src/components/Dashboard.test.tsx > Dashboard Component > filters items based on search input
+TestingLibraryElementError: Found multiple elements with the text: 2
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+<strong
+  class="text-vault-accent"
+>
+  2
+</strong>
+
+Ignored nodes: comments, script, style
+<strong
+  class="text-vault-text"
+>
+  2
+</strong>
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="flex flex-col h-screen overflow-hidden bg-vault-bg text-vault-text font-sans antialiased transition-colors duration-500"
+    >
+      <header
+        class="flex-none h-16 flex items-center justify-between px-4 md:px-6 z-20 vault-card rounded-none border-t-0 border-x-0 border-b shadow-sm relative"
+      >
+        <div
+          class="flex items-center gap-4"
+        >
+          <button
+            class="vault-btn p-1.5 h-8 w-8 flex items-center justify-center border-none hover:bg-vault-cardBg"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-shield text-vault-accent"
+              fill="none"
+              height="20"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="20"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+              />
+            </svg>
+          </button>
+          <div
+            class="flex items-center gap-3"
+          >
+            <div
+              class="text-vault-accent"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-shield"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                />
+              </svg>
+            </div>
+            <div
+              class="leading-tight"
+            >
+              <h1
+                class="text-xl font-bold tracking-tight flex items-center gap-1"
+              >
+                Vault
+                <span
+                  class="text-vault-accent font-light"
+                >
+                  Central
+                </span>
+              </h1>
+              <p
+                class="text-[9px] text-vault-muted font-medium tracking-wider uppercase"
+              >
+                Secure Media Vault // 
+                <a
+                  class="hover:text-vault-accent underline transition-colors"
+                  href="https://vaultwares.com"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  VaultWares.com
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div
+          class="flex items-center gap-3"
+        >
+          <div
+            class="relative group flex items-center gap-2"
+          >
+            <select
+              class="bg-vault-cardBg border border-vault-border rounded-l-full px-3 py-1.5 text-xs text-vault-text focus:border-vault-accent outline-none appearance-none"
+            >
+              <option
+                value="title"
+              >
+                Title
+              </option>
+              <option
+                value="author"
+              >
+                Author
+              </option>
+              <option
+                value="domain"
+              >
+                Domain
+              </option>
+              <option
+                value="url"
+              >
+                URL
+              </option>
+              <option
+                value="quality"
+              >
+                Quality
+              </option>
+              <option
+                value="resolution"
+              >
+                Res
+              </option>
+              <option
+                value="description"
+              >
+                Desc
+              </option>
+              <option
+                value="tags"
+              >
+                Tags
+              </option>
+            </select>
+            <div
+              class="relative flex-1"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-search absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted group-focus-within:text-vault-accent transition-colors"
+                fill="none"
+                height="14"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="14"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                ...
+
+Ignored nodes: comments, script, style
+<html
+  class="dark"
+  data-theme="vault-theme-gold-dark"
+>
+  <head />
+  <body>
+    <div>
+      <div
+        class="flex flex-col h-screen overflow-hidden bg-vault-bg text-vault-text font-sans antialiased transition-colors duration-500"
+      >
+        <header
+          class="flex-none h-16 flex items-center justify-between px-4 md:px-6 z-20 vault-card rounded-none border-t-0 border-x-0 border-b shadow-sm relative"
+        >
+          <div
+            class="flex items-center gap-4"
+          >
+            <button
+              class="vault-btn p-1.5 h-8 w-8 flex items-center justify-center border-none hover:bg-vault-cardBg"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-shield text-vault-accent"
+                fill="none"
+                height="20"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="20"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                />
+              </svg>
+            </button>
+            <div
+              class="flex items-center gap-3"
+            >
+              <div
+                class="text-vault-accent"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-shield"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2.5"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                  />
+                </svg>
+              </div>
+              <div
+                class="leading-tight"
+              >
+                <h1
+                  class="text-xl font-bold tracking-tight flex items-center gap-1"
+                >
+                  Vault
+                  <span
+                    class="text-vault-accent font-light"
+                  >
+                    Central
+                  </span>
+                </h1>
+                <p
+                  class="text-[9px] text-vault-muted font-medium tracking-wider uppercase"
+                >
+                  Secure Media Vault // 
+                  <a
+                    class="hover:text-vault-accent underline transition-colors"
+                    href="https://vaultwares.com"
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    VaultWares.com
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+          <div
+            class="flex items-center gap-3"
+          >
+            <div
+              class="relative group flex items-center gap-2"
+            >
+              <select
+                class="bg-vault-cardBg border border-vault-border rounded-l-full px-3 py-1.5 text-xs text-vault-text focus:border-vault-accent outline-none appearance-none"
+              >
+                <option
+                  value="title"
+                >
+                  Title
+                </option>
+                <option
+                  value="author"
+                >
+                  Author
+                </option>
+                <option
+                  value="domain"
+                >
+                  Domain
+                </option>
+                <option
+                  value="url"
+                >
+                  URL
+                </option>
+                <option
+                  value="quality"
+                >
+                  Quality
+                </option>
+                <option
+                  value="resolution"
+                >
+                  Res
+                </option>
+                <option
+                  value="description"
+                >
+                  Desc
+                </option>
+                <option
+                  value="tags"
+                >
+                  Tags
+                </option>
+              </select>
+              <div
+                class="relative flex-1"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-search absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted group-focus-within:text-vault-accent transition-colors"
+                  fill="none"
+                  height="14"
+                  s...
+ ÔØ» Proxy.waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ÔØ» src/components/Dashboard.test.tsx:94:11
+     92|     render(<VaultDashboard />);
+     93|
+     94|     await waitFor(() => {
+       |           ^
+     95|       expect(screen.getByText('2', { selector: 'strong' })).toBeInTheDÔÇª
+     96|     }, { timeout: 3000 });
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[9/9]ÔÄ»
+
+
+[2m Test Files [22m [1m[31m7 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (9)[39m
+[2m      Tests [22m [1m[31m4 failed[39m[22m[2m | [22m[1m[32m8 passed[39m[22m[90m (12)[39m
+[2m   Start at [22m 06:45:59
+[2m   Duration [22m 8.23s[2m (transform 238ms, setup 1.02s, import 567ms, tests 12.65s, environment 11.94s)[22m
+
