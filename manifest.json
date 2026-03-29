@@ -51,7 +51,6 @@
         "<all_urls>"
       ],
       "js": [
-        "browser-polyfill.js",
         "content.js"
       ]
     }
@@ -59,7 +58,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "browser-polyfill.js",
         "content.js"
       ],
       "matches": [

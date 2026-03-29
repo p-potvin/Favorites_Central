@@ -19,11 +19,7 @@ export default defineConfig({
         },
         {
           src: 'icons/*',
-          dest: '.',
-        },
-        {
-          src: 'node_modules/webextension-polyfill/dist/browser-polyfill.js',
-          dest: '.',
+          dest: 'icons',
         },
       ],
     }),
@@ -32,16 +28,11 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       input: {
-        background: resolve(__dirname, 'background/scripts/background.ts'),
-        content: resolve(__dirname, 'src/scripts/content.ts'),
         dashboard: resolve(__dirname, 'dashboard-v2.html'),
         pin: resolve(__dirname, 'pin-entry.html'),
       },
       output: {
-        entryFileNames: (chunkInfo) => {
-          if (chunkInfo.name === 'background') return 'background/scripts/[name].js';
-          return '[name].js';
-        },
+        entryFileNames: '[name].js',
         chunkFileNames: '[name].js',
         assetFileNames: '[name].[ext]',
       },

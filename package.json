@@ -5,7 +5,7 @@
   "main": "content.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node package-extension.cjs",
+    "build": "tsc && vite build && npx esbuild src/scripts/content.ts --bundle --outfile=dist/content.js --format=iife --target=es2020 --minify && npx esbuild background/scripts/background.ts --bundle --outfile=dist/background/scripts/background.js --format=iife --target=es2020 --minify && node package-extension.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview"
