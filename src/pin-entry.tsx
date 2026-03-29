@@ -153,7 +153,7 @@ const PinPopup: React.FC = () => {
         {pin.map((digit, idx) => (
           <input
             key={idx}
-            ref={el => inputsRef.current[idx] = el}
+            ref={el => { inputsRef.current[idx] = el; }}
             type="password"
             inputMode="numeric"
             pattern="[0-9]*"

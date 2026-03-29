@@ -15,7 +15,7 @@
     --vault-font: 'Segoe UI Semilight', 'Segoe UI', system-ui, sans-serif;
   }
 
-  [data-theme="skin-1"] { /* 1. light theme | light beige | burgundy */
+  [data-theme="vault-theme-burgundy-beige"] { /* 1. light theme | light beige | burgundy */
     --vault-bg: #F5F5DC;
     --vault-text: #2D3748;
     --vault-border: #D2D2B4;
@@ -25,7 +25,7 @@
     --vault-accent-hover: #990026;
   }
 
-  [data-theme="skin-2"] { /* 2. dark theme | Solarized base02 | Solarized orange */
+  [data-theme="vault-theme-solarized-orange"] { /* 2. dark theme | Solarized base02 | Solarized orange */
     --vault-bg: #073642; 
     --vault-text: #93a1a1; 
     --vault-border: #002b36; 
@@ -35,7 +35,7 @@
     --vault-accent-hover: #e35a22;
   }
 
-  [data-theme="skin-3"] { /* 3. dark theme | dark gray | gold yellow */
+  [data-theme="vault-theme-gold-dark"] { /* 3. dark theme | dark gray | gold yellow */
     --vault-bg: #4A5459;
     --vault-text: #F3F4F6;
     --vault-border: #3A4247;
@@ -45,7 +45,7 @@
     --vault-accent-hover: #e0ac2b;
   }
 
-  [data-theme="skin-4"] { /* 4. light theme | off-white | darker gray */
+  [data-theme="vault-theme-grayscale-light"] { /* 4. light theme | off-white | darker gray */
     --vault-bg: #FAF9F6;
     --vault-text: #1A202C;
     --vault-border: #E2E8F0;
@@ -55,7 +55,7 @@
     --vault-accent-hover: #2D3748;
   }
 
-  [data-theme="skin-5"] { /* 5. dark theme | red | light pink */
+  [data-theme="vault-theme-rosy-red"] { /* 5. dark theme | red | light pink */
     --vault-bg: #3b0000; 
     --vault-text: #FFF0F5;
     --vault-border: #290000;
@@ -65,7 +65,7 @@
     --vault-accent-hover: #FFC0CB;
   }
 
-  [data-theme="skin-6"] { /* 6. light theme | light gray | deep blue sea */
+  [data-theme="vault-theme-ocean-light"] { /* 6. light theme | light gray | deep blue sea */
     --vault-bg: #EAEAEA;
     --vault-text: #1A202C;
     --vault-border: #D1D5DB;
@@ -75,7 +75,7 @@
     --vault-accent-hover: #0081B4;
   }
 
-  [data-theme="skin-7"] { /* 7. dark theme | light black | logo's color (cyan or bright green) */
+  [data-theme="vault-theme-neon-dark"] { /* 7. dark theme | light black | logo's color (cyan or bright green) */
     --vault-bg: #1C1C1C;
     --vault-text: #E2E8F0;
     --vault-border: #2D3748;
@@ -85,7 +85,7 @@
     --vault-accent-hover: #33F5FF;
   }
 
-  [data-theme="skin-8"] { /* 8. dark theme | dark purple | bright orange */
+  [data-theme="vault-theme-sunset-purple"] { /* 8. dark theme | dark purple | bright orange */
     --vault-bg: #2B1B3D;
     --vault-text: #F3F4F6;
     --vault-border: #1E122C;
@@ -95,7 +95,7 @@
     --vault-accent-hover: #FFA233;
   }
 
-  [data-theme="skin-9"] { /* 9. light theme | pale white | bright purple */
+  [data-theme="vault-theme-royal-light"] { /* 9. light theme | pale white | bright purple */
     --vault-bg: #FDFAFF; 
     --vault-text: #2D3748;
     --vault-border: #E9DEEF;

@@ -273,9 +273,30 @@ function attemptExtraction(el) {
         extraMeta.date = enriched.date;
         extraMeta.tags = enriched.tags;
     }
+    let type = 'link';
+    if (el) {
+        const tag = el.tagName.toLowerCase();
+        if (tag === 'video')
+            type = 'video';
+        else if (tag === 'img')
+            type = 'image';
+        else if (tag === 'audio')
+            type = 'audio';
+    }
+    if (type === 'link') {
+        if (url.match(/\.(mp4|webm|mkv|m3u8)$/i))
+            type = 'video';
+        else if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+            type = 'image';
+        else if (url.match(/\.(mp3|wav|flac|ogg)$/i))
+            type = 'audio';
+        else if (url.match(/\.torrent$/i) || url.startsWith('magnet:'))
+            type = 'torrent';
+    }
     const rawData = {
         title: title.trim().substring(0, 100),
         url: url,
+        type: type,
         thumbnail: "",
         timestamp: Date.now(),
         ...extraMeta

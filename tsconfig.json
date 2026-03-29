@@ -12,5 +12,5 @@
     "types": ["webextension-polyfill", "chrome", "node", "vitest/globals"],
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*.ts", "background/**/*.ts", "*.ts", "vitest.setup.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "background/**/*.ts", "*.ts", "*.tsx", "vitest.setup.ts"]
 }

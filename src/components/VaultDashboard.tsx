@@ -1,8 +1,9 @@
 import browser from 'webextension-polyfill';
-import { getSavedVideos, saveVideos } from '../lib/storage-vault';
-import { getPreview } from '../lib/dexie-store'; // Added for binary previews
+import { getPinSettings, getSavedVideos, savePinSettings, saveVideos } from '../lib/storage-vault';
+import { getPreview } from '../lib/dexie-store';
+import { VAULT_THEMES, getThemeClass } from '../lib/themes'; // Added for binary previews
 import { type VideoData } from '../types/schemas';
-import { Heart, Search, Shield, Settings, Palette, Menu, FolderTree, ArrowDownAZ, LayoutTemplate, ChevronRight, ChevronLeft, ArrowLeft, Trash2, Edit2, Play, X, AlertTriangle, RefreshCw, Lock } from 'lucide-react';
+import { Heart, Search, Shield, Settings, Palette, Menu, FolderTree, ArrowDownAZ, LayoutTemplate, ChevronRight, ChevronLeft, ArrowLeft, Trash2, Edit2, Play, X, AlertTriangle, RefreshCw, Lock, Download, Upload } from 'lucide-react';
 import { cn } from '../lib/utils';
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 
@@ -119,16 +120,58 @@ export const VaultDashboard: React.FC = () => {
   const [items, setItems] = useState<VideoData[]>([]);
   const [search, setSearch] = useState('');
   const [searchField, setSearchField] = useState<keyof VideoData>('title');
-  const [currentSkin, setCurrentSkin] = useState<number>(3);
+  const [currentTheme, setCurrentTheme] = useState<number>(3);
   
   // Sidebar states
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  const handleExportVault = async () => {
+    try {
+      const data = await getSavedVideos();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `vault-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed", err);
+    }
+  };
+
+  const handleImportVault = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (Array.isArray(json)) {
+          await saveVideos(json);
+          setItems(json);
+          alert("Backup successfully imported!");
+        }
+      } catch (err) {
+        console.error("Import failed", err);
+        alert("Failed to import. Invalid JSON backup.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleWipeVault = async () => {
+    if (confirm("Are you sure you want to completely wipe your vault? This cannot be undone.")) {
+      await saveVideos([]);
+      setItems([]);
+      setIsSettingsOpen(false);
+    }
+  };
   const [groupBy, setGroupBy] = useState('Hostname');
   const [sortBy, setSortBy] = useState<keyof VideoData | 'DateDesc' | 'DateAsc'>('DateDesc');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [viewSize, setViewSize] = useState<number>(3); // 1: Details, 2: Small, 3: Medium, 4: Large, 5: Biggest
+  const [viewSize, setViewSize] = useState<number>(3); // 1: Details, 2: list, 3: Small, 4: Medium, 5: Large, 6: Biggest
   const [isDimmed, setIsDimmed] = useState(false); // Player Dimmer State
 
   // Layout & Pagination states
@@ -150,17 +193,17 @@ export const VaultDashboard: React.FC = () => {
   const [isFirefox] = useState(() => navigator.userAgent.toLowerCase().includes('firefox'));
 
   useEffect(() => {
-    const savedSkin = localStorage.getItem('vault-skin');
-    if (savedSkin) {
-      const skinNum = parseInt(savedSkin, 10);
-      setCurrentSkin(skinNum);
-      const mode = (skinNum === 1 || skinNum === 4 || skinNum === 6 || skinNum === 9) ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', `skin-${skinNum}`);
-      document.documentElement.classList.toggle('dark', mode === 'dark');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'skin-3');
-      document.documentElement.classList.add('dark');
-    }
+    const savedTheme = localStorage.getItem('vault-theme');
+      if (savedTheme) {
+        const themeNum = parseInt(savedTheme, 10);
+        setCurrentTheme(themeNum);
+        const mode = VAULT_THEMES[themeNum]?.mode || 'dark';
+        document.documentElement.setAttribute('data-theme', getThemeClass(themeNum));
+        document.documentElement.classList.toggle('dark', mode === 'dark');
+      } else {
+        document.documentElement.setAttribute('data-theme', getThemeClass(3));
+        document.documentElement.classList.add('dark');
+      }
 
     const load = async () => {
       const settings = await getPinSettings();
@@ -204,12 +247,12 @@ export const VaultDashboard: React.FC = () => {
   };
 
   const cycleTheme = () => {
-    const nextSkin = currentSkin === 9 ? 1 : currentSkin + 1;
-    setCurrentSkin(nextSkin);
-    const mode = (nextSkin === 1 || nextSkin === 4 || nextSkin === 6 || nextSkin === 9) ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', `skin-${nextSkin}`);
+    const nextTheme = currentTheme === 9 ? 1 : currentTheme + 1;
+    setCurrentTheme(nextTheme);
+    const mode = VAULT_THEMES[nextTheme]?.mode || 'dark';
+    document.documentElement.setAttribute('data-theme', getThemeClass(nextTheme));
     document.documentElement.classList.toggle('dark', mode === 'dark');
-    localStorage.setItem('vault-skin', nextSkin.toString());
+    localStorage.setItem('vault-theme', nextTheme.toString());
   };
 
   // Infinite scroll
@@ -363,13 +406,10 @@ export const VaultDashboard: React.FC = () => {
           <button 
             onClick={cycleTheme}
             className="vault-btn flex items-center justify-center p-1.5 rounded-full h-8 w-8 relative group"
-            title={`Skin ${currentSkin}/9`}
+            title={`Theme ${currentTheme}/9`}
           >
             <Palette size={16} className="group-hover:rotate-12 transition-transform" />
           </button>
-            <button onClick={() => setIsSettingsOpen(true)} className="vault-btn flex items-center justify-center p-1.5 rounded-full h-8 w-8 group" title="Advanced Options & Export">
-              <Settings size={16} className="text-vault-accent group-hover:rotate-90 transition-transform duration-300" />
-            </button>
             <button onClick={() => setIsSettingsOpen(true)} className="vault-btn flex items-center justify-center p-1.5 rounded-full h-8 w-8 group" title="Advanced Options & Export">
               <Settings size={16} className="text-vault-accent group-hover:rotate-90 transition-transform duration-300" />
             </button>
@@ -823,76 +863,6 @@ export const VaultDashboard: React.FC = () => {
           </div>
         </main>
       </div>
-
-      {/* SETTINGS & EXPORT MODAL */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-vault-bg border border-vault-border rounded-lg shadow-2xl w-full max-w-2xl p-0 relative flex flex-col animate-in zoom-in-95 duration-200">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-vault-border bg-vault-cardBg">
-              <h2 className="text-lg font-bold text-vault-text flex items-center gap-2">
-                <Settings size={20} className="text-vault-accent" /> Advanced Options & Export
-              </h2>
-              <button 
-                onClick={() => setIsSettingsOpen(false)} 
-                className="vault-btn p-1.5 h-8 w-8 flex items-center justify-center rounded-full hover:bg-vault-bg border-none"
-              >
-                <X size={16} className="text-vault-muted" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto max-h-[70vh] flex flex-col gap-8">
-               
-               {/* Export / Import */}
-               <section>
-                 <h3 className="text-sm font-black uppercase text-vault-muted mb-4 border-b border-vault-border pb-2 tracking-widest">Data Portability</h3>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   <div className="bg-vault-cardBg border border-vault-border rounded p-4 flex flex-col gap-3">
-                     <div className="flex items-center gap-2 text-vault-text font-bold">
-                       <Download size={18} className="text-vault-accent"/> Export Vault JSON
-                     </div>
-                     <p className="text-xs text-vault-muted leading-relaxed flex-1">
-                       Download a complete JSON backup of all metadata, tags, and references safely to your local machine.
-                     </p>
-                     <button onClick={handleExportVault} className="vault-btn py-2 text-xs font-bold w-full bg-vault-accent/10 text-vault-accent border-vault-accent/30 hover:bg-vault-accent hover:text-vault-bg transition-colors">
-                       Generate Backup
-                     </button>
-                   </div>
-
-                   <div className="bg-vault-cardBg border border-vault-border rounded p-4 flex flex-col gap-3">
-                     <div className="flex items-center gap-2 text-vault-text font-bold">
-                       <Upload size={18} className="text-vault-accent"/> Import Vault Backup
-                     </div>
-                     <p className="text-xs text-vault-muted leading-relaxed flex-1">
-                       Restore a previously exported Vault JSON file. Note: Pre-existing duplicate URLs will be skipped.
-                     </p>
-                     <label className="vault-btn py-2 text-xs font-bold w-full bg-vault-accent/10 text-vault-accent border-vault-accent/30 hover:bg-vault-accent hover:text-vault-bg transition-colors text-center cursor-pointer">
-                        Select JSON File
-                        <input type="file" accept=".json" onChange={(e) => { handleImportVault(e); setIsSettingsOpen(false); }} className="hidden" />
-                     </label>
-                   </div>
-                 </div>
-               </section>
-
-               {/* Danger Zone */}
-               <section>
-                 <h3 className="text-sm font-black uppercase text-red-500/80 mb-4 border-b border-red-900/30 pb-2 tracking-widest">Danger Zone</h3>
-                 <div className="bg-red-900/10 border border-red-900/30 rounded p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-                   <div>
-                     <h4 className="text-red-400 font-bold flex items-center gap-2"><AlertTriangle size={16}/> Wipe Vault Data</h4>
-                     <p className="text-xs text-red-400/70 mt-1">Permanently obliterate all bookmarks, metadata, and blob previews from IndexedDB.</p>
-                   </div>
-                   <button onClick={handleWipeVault} className="vault-btn py-2 px-4 shadow-[0_0_15px_-3px_var(--color-red-500)] text-xs font-black uppercase tracking-widest bg-red-600 hover:bg-red-500 text-white border-none whitespace-nowrap">
-                     Wipe Database
-                   </button>
-                 </div>
-               </section>
-
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* SETTINGS & EXPORT MODAL */}
       {isSettingsOpen && (
