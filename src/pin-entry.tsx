@@ -97,8 +97,11 @@ const PinPopup: React.FC = () => {
         `}</style>
         <Shield size={32} className="text-[#3b82f6]" />
         <p className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold">Vault Unsecured</p>
-        <button 
-          onClick={() => browser.tabs.create({ url: browser.runtime.getURL('dashboard-v2.html') })}
+        <button
+          onClick={() => {
+            browser.runtime.sendMessage({ action: "open_dashboard" });
+            window.close();
+          }}
           className="vault-btn w-full p-3 text-[11px] font-black uppercase tracking-widest rounded-md"
         >
           Open Dashboard
@@ -127,8 +130,11 @@ const PinPopup: React.FC = () => {
         <Unlock size={32} className="text-[#10b981] animate-pulse" />
         <p className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-[#10b981]">Vault Unlocked</p>
         <div className="w-full h-px bg-[#1e293b]" />
-        <button 
-          onClick={() => browser.tabs.create({ url: browser.runtime.getURL('dashboard-v2.html') })}
+        <button
+          onClick={() => {
+            browser.runtime.sendMessage({ action: "open_dashboard" });
+            window.close();
+          }}
           className="vault-btn w-full p-3 text-[11px] font-black uppercase tracking-widest rounded-md"
         >
           Access Mainframe

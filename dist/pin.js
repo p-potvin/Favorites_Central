@@ -16,7 +16,7 @@ import{d as e,f as t,h as n,i as r,l as i,n as a,o,r as s,s as c,t as l,u}from".
             color: white;
             box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.5);
           }
-        `}),(0,h.jsx)(d,{size:32,className:`text-[#10b981] animate-pulse`}),(0,h.jsx)(`p`,{className:`text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-[#10b981]`,children:`Vault Unlocked`}),(0,h.jsx)(`div`,{className:`w-full h-px bg-[#1e293b]`}),(0,h.jsx)(`button`,{onClick:()=>m.default.tabs.create({url:m.default.runtime.getURL(`dashboard-v2.html`)}),className:`vault-btn w-full p-3 text-[11px] font-black uppercase tracking-widest rounded-md`,children:`Access Mainframe`})]}):(0,h.jsxs)(`div`,{className:`w-[320px] p-6 bg-[#0b0f19] text-white flex flex-col items-center gap-4 border border-[#1e293b]`,children:[(0,h.jsx)(`style`,{children:`
+        `}),(0,h.jsx)(d,{size:32,className:`text-[#10b981] animate-pulse`}),(0,h.jsx)(`p`,{className:`text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-[#10b981]`,children:`Vault Unlocked`}),(0,h.jsx)(`div`,{className:`w-full h-px bg-[#1e293b]`}),(0,h.jsx)(`button`,{onClick:()=>{m.default.runtime.sendMessage({action:`open_dashboard`}),window.close()},className:`vault-btn w-full p-3 text-[11px] font-black uppercase tracking-widest rounded-md`,children:`Access Mainframe`})]}):(0,h.jsxs)(`div`,{className:`w-[320px] p-6 bg-[#0b0f19] text-white flex flex-col items-center gap-4 border border-[#1e293b]`,children:[(0,h.jsx)(`style`,{children:`
           .vault-btn {
             background: #1e293b;
             border: 1px solid #334155;
@@ -29,5 +29,5 @@ import{d as e,f as t,h as n,i as r,l as i,n as a,o,r as s,s as c,t as l,u}from".
             color: white;
             box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.5);
           }
-        `}),(0,h.jsx)(l,{size:32,className:`text-[#3b82f6]`}),(0,h.jsx)(`p`,{className:`text-[10px] font-mono uppercase tracking-[0.2em] font-bold`,children:`Vault Unsecured`}),(0,h.jsx)(`button`,{onClick:()=>m.default.tabs.create({url:m.default.runtime.getURL(`dashboard-v2.html`)}),className:`vault-btn w-full p-3 text-[11px] font-black uppercase tracking-widest rounded-md`,children:`Open Dashboard`})]}):null},_=document.getElementById(`root`);_&&p.createRoot(_).render((0,h.jsx)(g,{}));
+        `}),(0,h.jsx)(l,{size:32,className:`text-[#3b82f6]`}),(0,h.jsx)(`p`,{className:`text-[10px] font-mono uppercase tracking-[0.2em] font-bold`,children:`Vault Unsecured`}),(0,h.jsx)(`button`,{onClick:()=>{m.default.runtime.sendMessage({action:`open_dashboard`}),window.close()},className:`vault-btn w-full p-3 text-[11px] font-black uppercase tracking-widest rounded-md`,children:`Open Dashboard`})]}):null},_=document.getElementById(`root`);_&&p.createRoot(_).render((0,h.jsx)(g,{}));
 //# sourceMappingURL=pin.js.map

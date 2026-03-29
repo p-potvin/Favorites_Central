@@ -83,7 +83,10 @@ const PinPopup = () => {
             color: white;
             box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.5);
           }
-        ` }), _jsx(Shield, { size: 32, className: "text-[#3b82f6]" }), _jsx("p", { className: "text-[10px] font-mono uppercase tracking-[0.2em] font-bold", children: "Vault Unsecured" }), _jsx("button", { onClick: () => browser.tabs.create({ url: browser.runtime.getURL('dashboard-v2.html') }), className: "vault-btn w-full p-3 text-[11px] font-black uppercase tracking-widest rounded-md", children: "Open Dashboard" })] }));
+        ` }), _jsx(Shield, { size: 32, className: "text-[#3b82f6]" }), _jsx("p", { className: "text-[10px] font-mono uppercase tracking-[0.2em] font-bold", children: "Vault Unsecured" }), _jsx("button", { onClick: () => {
+                        browser.runtime.sendMessage({ action: "open_dashboard" });
+                        window.close();
+                    }, className: "vault-btn w-full p-3 text-[11px] font-black uppercase tracking-widest rounded-md", children: "Open Dashboard" })] }));
     }
     if (!isLocked) {
         return (_jsxs("div", { className: "w-[320px] p-6 bg-[#0b0f19] text-white flex flex-col items-center gap-4 animate-in fade-in duration-500 border border-[#1e293b]", children: [_jsx("style", { children: `
@@ -99,7 +102,10 @@ const PinPopup = () => {
             color: white;
             box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.5);
           }
-        ` }), _jsx(Unlock, { size: 32, className: "text-[#10b981] animate-pulse" }), _jsx("p", { className: "text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-[#10b981]", children: "Vault Unlocked" }), _jsx("div", { className: "w-full h-px bg-[#1e293b]" }), _jsx("button", { onClick: () => browser.tabs.create({ url: browser.runtime.getURL('dashboard-v2.html') }), className: "vault-btn w-full p-3 text-[11px] font-black uppercase tracking-widest rounded-md", children: "Access Mainframe" })] }));
+        ` }), _jsx(Unlock, { size: 32, className: "text-[#10b981] animate-pulse" }), _jsx("p", { className: "text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-[#10b981]", children: "Vault Unlocked" }), _jsx("div", { className: "w-full h-px bg-[#1e293b]" }), _jsx("button", { onClick: () => {
+                        browser.runtime.sendMessage({ action: "open_dashboard" });
+                        window.close();
+                    }, className: "vault-btn w-full p-3 text-[11px] font-black uppercase tracking-widest rounded-md", children: "Access Mainframe" })] }));
     }
     return (_jsxs("div", { className: "w-[320px] p-6 bg-vault-bg text-vault-text flex flex-col items-center gap-6 select-none", children: [_jsxs("div", { className: "relative", children: [_jsx(Lock, { size: 32, className: error ? "text-red-500 animate-bounce" : "text-vault-accent" }), _jsx("div", { className: "absolute -inset-1 blur-lg bg-vault-accent/20 rounded-full" })] }), _jsxs("div", { className: "text-center space-y-1", children: [_jsx("h2", { className: "text-xs font-mono font-black uppercase tracking-[0.2em]", children: "Authenticating" }), _jsxs("p", { className: "text-[10px] text-vault-muted font-bold tracking-tighter opacity-60", children: ["Enter ", pinSettings.length, "-digit sequence"] })] }), _jsx("div", { className: "flex gap-3 justify-center", children: pin.map((digit, idx) => (_jsx("input", { ref: el => { inputsRef.current[idx] = el; }, type: "password", inputMode: "numeric", pattern: "[0-9]*", maxLength: 1, value: digit, onChange: e => handleChange(idx, e.target.value), onKeyDown: e => handleKeyDown(idx, e), className: `
               w-10 h-14 bg-vault-cardBg/50 border-2 rounded-xl text-center text-xl font-bold 
