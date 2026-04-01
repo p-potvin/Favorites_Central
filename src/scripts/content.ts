@@ -88,12 +88,31 @@ async function highlightVaultItems() {
 /**
  * Industrial Notification System (Modernized)
  */
-function showVaultNotification(type: 'success' | 'removed' | 'error' | 'processing', message: string) {
-    const existing = document.getElementById("vault-notification-portal");
-    if (existing) existing.remove();
+const activeNotifications = new Map<string, HTMLElement>();
+const MAX_CONCURRENT_NOTIFICATIONS = 10;
 
-    const el = document.createElement("div");
-    el.id = "vault-notification-portal";
+function showVaultNotification(type: 'success' | 'removed' | 'error' | 'processing', message: string, id?: string) {
+    const portalId = id || `vault-notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // If we have an existing notification with this ID (e.g. updating processing -> success), reuse it
+    let el = activeNotifications.get(portalId);
+    const isUpdate = !!el;
+
+    if (!el) {
+        // Enforce maximum concurrent notifications
+        if (activeNotifications.size >= MAX_CONCURRENT_NOTIFICATIONS) {
+            const oldestKey = activeNotifications.keys().next().value;
+            const oldestEl = activeNotifications.get(oldestKey);
+            if (oldestEl) {
+                oldestEl.remove();
+                activeNotifications.delete(oldestKey);
+            }
+        }
+        el = document.createElement("div");
+        el.id = portalId;
+        activeNotifications.set(portalId, el);
+        document.body.appendChild(el);
+    }
     
     // Icon Mapping
     const iconMap: Record<string, string> = {
@@ -119,11 +138,17 @@ function showVaultNotification(type: 'success' | 'removed' | 'error' | 'processi
 
     const theme = themeMap[type] || themeMap.error;
 
+    // Calculate vertical offset based on position in map
+    const index = Array.from(activeNotifications.keys()).indexOf(portalId);
+    const bottomOffset = 24 + (index * 60);
+
     Object.assign(el.style, {
         position: "fixed",
-        bottom: "24px",
+        bottom: `${bottomOffset}px`,
         right: "24px",
         padding: "14px 24px",
+        height: "50px",
+        boxSizing: "border-box",
         borderRadius: "4px",
         borderLeft: `4px solid ${theme.border}`,
         backgroundColor: "rgba(11, 15, 25, 0.98)",
@@ -135,37 +160,49 @@ function showVaultNotification(type: 'success' | 'removed' | 'error' | 'processi
         boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)",
         zIndex: "2147483647",
         transition: "all 0.5s cubic-bezier(0.19, 1, 0.22, 1)",
-        opacity: "0",
-        transform: "translateX(100%)",
+        opacity: isUpdate ? "1" : "0",
+        transform: isUpdate ? "translateX(0)" : "translateX(100%)",
         pointerEvents: "none",
         backdropFilter: "blur(12px)"
     });
 
-    document.body.appendChild(el);
-
-    requestAnimationFrame(() => {
-        el.style.opacity = "1";
-        el.style.transform = "translateX(0)";
-    });
+    if (!isUpdate) {
+        requestAnimationFrame(() => {
+            el!.style.opacity = "1";
+            el!.style.transform = "translateX(0)";
+        });
+    }
 
     // Auto-remove unless it's processing
     if (type !== 'processing') {
         setTimeout(() => {
-            el.style.opacity = "0";
-            el.style.transform = "translateX(100%)";
-            setTimeout(() => el.remove(), 500);
+            if (activeNotifications.has(portalId)) {
+                el!.style.opacity = "0";
+                el!.style.transform = "translateX(100%)";
+                setTimeout(() => {
+                    el!.remove();
+                    activeNotifications.delete(portalId);
+                    // Shift others down
+                    updateNotificationOffsets();
+                }, 500);
+            }
         }, 4000);
     }
 
     // Contextual indicator updates
-    if (lastHoveredElement) {
-        const target = lastHoveredElement.closest("a") as HTMLElement || lastHoveredElement;
-        if (type === 'success') addHeartIndicator(target);
-        if (type === 'removed') {
-            const heart = target.querySelector(".vault-heart-indicator");
-            if (heart) heart.remove();
-        }
+    const target = portalId?.startsWith('capture-') ? null : (lastHoveredElement?.closest("a") as HTMLElement || lastHoveredElement);
+    if (type === 'success' && target) addHeartIndicator(target);
+    if (type === 'removed' && target) {
+        const heart = target.querySelector(".vault-heart-indicator");
+        if (heart) heart.remove();
     }
+}
+
+function updateNotificationOffsets() {
+    Array.from(activeNotifications.entries()).forEach(([id, el], index) => {
+        const bottomOffset = 24 + (index * 60);
+        el.style.bottom = `${bottomOffset}px`;
+    });
 }
 
 /**
@@ -178,7 +215,8 @@ function extractSurroundingMetadata(baseEl: HTMLElement, existingTitle: string) 
         views: "",
         likes: "",
         date: "",
-        tags: [] as string[]
+        tags: [] as string[],
+        actors: [] as string[]
     };
 
     try {
@@ -232,9 +270,20 @@ function extractSurroundingMetadata(baseEl: HTMLElement, existingTitle: string) 
                 // meta.author = text;
             }
 
-            // Date (e.g., "2 hours ago", "Jan 12", "2024-01-01")
-            if (/(?:ago|yesterday|today|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(lower) && text.length < 20) {
+            // Date (e.g., "2 hours ago", "Jan 12", "2024-01-01") vs Actors
+            const isStrictDate = /(?:\d+\s+(?:min|hour|day|week|month|year)s?\s+ago)|(?:yesterday|today)|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}|^\d{4}[-/]\d{2}[-/]\d{2}$/i.test(text);
+            const isOldSloppyDate = /(?:ago|yesterday|today|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(lower);
+            
+            if (isStrictDate && text.length < 20) {
                 if (!meta.date) meta.date = text;
+            } else if (isOldSloppyDate && text.length < 30) {
+                // Previously, names like "Julia" or "Mark" got caught here. If it's not a strict date, it's likely an actor.
+                if (!meta.actors.includes(text)) meta.actors.push(text);
+            } else if (el.tagName === 'A' && text.split(' ').length <= 3 && text.length > 2 && text.length < 25 && !text.startsWith('#') && !text.startsWith('@')) {
+                const hint = (el.className + ' ' + el.getAttribute('href')).toLowerCase();
+                if (hint.includes('model') || hint.includes('actor') || hint.includes('pornstar') || hint.includes('/star/')) {
+                    if (!meta.actors.includes(text)) meta.actors.push(text);
+                }
             }
             
             // Heuristic Title (if it's a heading and we don't have a good one)
@@ -280,7 +329,13 @@ function attemptExtraction(el: HTMLElement | null): VideoData | Partial<VideoDat
         }
     }
 
-    const url = link?.href || window.location.href;
+    let url = link?.href;
+    if (!url && el && (el as any).src) {
+        url = (el as any).src;
+    }
+    if (!url) {
+        url = window.location.href;
+    }
     
     let title = "Untitled Media";
     if (el) {
@@ -293,7 +348,7 @@ function attemptExtraction(el: HTMLElement | null): VideoData | Partial<VideoDat
         title = document.title;
     }
 
-    let extraMeta = { author: "", views: "", likes: "", date: "", tags: [] as string[] };
+    let extraMeta = { author: "", views: "", likes: "", date: "", tags: [] as string[], actors: [] as string[] };
     if (el) {
         const enriched = extractSurroundingMetadata(el, title);
         title = enriched.title;
@@ -302,9 +357,10 @@ function attemptExtraction(el: HTMLElement | null): VideoData | Partial<VideoDat
         extraMeta.likes = enriched.likes;
         extraMeta.date = enriched.date;
         extraMeta.tags = enriched.tags;
+        extraMeta.actors = enriched.actors;
     }
 
-        let type: 'video'|'image'|'link'|'audio'|'torrent' = 'link';
+    let type: 'video'|'image'|'link'|'audio'|'torrent' = 'link';
     if (el) {
         const tag = el.tagName.toLowerCase();
         if (tag === 'video') type = 'video';
@@ -312,15 +368,17 @@ function attemptExtraction(el: HTMLElement | null): VideoData | Partial<VideoDat
         else if (tag === 'audio') type = 'audio';
     }
     if (type === 'link') {
-        if (url.match(/\.(mp4|webm|mkv|m3u8)$/i)) type = 'video';
-        else if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) type = 'image';
-        else if (url.match(/\.(mp3|wav|flac|ogg)$/i)) type = 'audio';
-        else if (url.match(/\.torrent$/i) || url.startsWith('magnet:')) type = 'torrent';
+        const urlWithoutQuery = url.split('?')[0];
+        if (urlWithoutQuery.match(/\.(mp4|webm|mkv|m3u8)$/i)) type = 'video';
+        else if (urlWithoutQuery.match(/\.(jpg|jpeg|png|gif|webp)$/i)) type = 'image';
+        else if (urlWithoutQuery.match(/\.(mp3|wav|flac|ogg)$/i)) type = 'audio';
+        else if (urlWithoutQuery.match(/\.torrent$/i) || url.startsWith('magnet:')) type = 'torrent';
     }
 
     const rawData = {
         title: title.trim().substring(0, 100),
         url: url,
+        domain: window.location.hostname.replace('www.', ''),
         type: type,
         thumbnail: "",
         timestamp: Date.now(),
@@ -395,7 +453,8 @@ async function startCaptureFlow() {
         return;
     }
 
-    showVaultNotification("processing", `Infiltrating: ${data.title?.substring(0, 20)}...`);
+    const notificationId = `capture-${Date.now()}`;
+    showVaultNotification("processing", `Infiltrating: ${data.title?.substring(0, 20)}...`, notificationId);
 
     try {
         const response = (await browser.runtime.sendMessage({ 
@@ -406,15 +465,15 @@ async function startCaptureFlow() {
         if (uiTarget) removeIndicators(uiTarget as HTMLElement);
 
         if (response && response.success) {
-            showVaultNotification("success", "Item secured in vault");
+            showVaultNotification("success", "Item secured in vault", notificationId);
             if (uiTarget) addHeartIndicator(uiTarget as HTMLElement);
         } else {
-            showVaultNotification("error", response?.message || "Capture operation failed");
+            showVaultNotification("error", response?.message || "Capture operation failed", notificationId);
         }
     } catch (e) {
         console.error("[VaultAuth] Capture flow failed:", e);
         if (uiTarget) removeIndicators(uiTarget as HTMLElement);
-        showVaultNotification("error", "Communication error with background.");
+        showVaultNotification("error", "Communication error with background.", notificationId);
     }
 }
 

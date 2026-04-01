@@ -3,7 +3,7 @@ import { getPinSettings, getSavedVideos, savePinSettings, saveVideos } from '../
 import { getPreview } from '../lib/dexie-store';
 import { VAULT_THEMES, getThemeClass } from '../lib/themes'; // Added for binary previews
 import { type VideoData } from '../types/schemas';
-import { Heart, Search, Shield, Settings, Palette, Menu, FolderTree, ArrowDownAZ, LayoutTemplate, ChevronRight, ChevronLeft, ArrowLeft, Trash2, Edit2, Play, X, AlertTriangle, RefreshCw, Lock, Download, Upload } from 'lucide-react';
+import { Heart, Search, Shield, Settings, Palette, Menu, FolderTree, ArrowDownAZ, LayoutTemplate, ChevronRight, ChevronLeft, ArrowLeft, Trash2, Edit2, Play, X, AlertTriangle, RefreshCw, Lock, Download, Upload, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { cn } from '../lib/utils';
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 
@@ -123,8 +123,24 @@ export const VaultDashboard: React.FC = () => {
   const [currentTheme, setCurrentTheme] = useState<number>(3);
   
   // Sidebar states
-  const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const [isSidebarOpen, setSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('vault-sidebar-open');
+    return saved !== 'false';
+  });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Custom Dialog States
+  const [toastMessage, setToastMessage] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{message: string, onConfirm: () => void} | null>(null);
+  const [promptDialog, setPromptDialog] = useState<{message: string, type?: 'password' | 'text', onConfirm: (val: string) => void} | null>(null);
+  const [editingItem, setEditingItem] = useState<{current: VideoData, original: VideoData} | null>(null);
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   const handleExportVault = async () => {
     try {
@@ -151,49 +167,90 @@ export const VaultDashboard: React.FC = () => {
         if (Array.isArray(json)) {
           await saveVideos(json);
           setItems(json);
-          alert("Backup successfully imported!");
+          setToastMessage({msg: "Backup successfully imported!", type: "success"});
         }
       } catch (err) {
         console.error("Import failed", err);
-        alert("Failed to import. Invalid JSON backup.");
+        setToastMessage({msg: "Failed to import. Invalid JSON backup.", type: "error"});
       }
     };
     reader.readAsText(file);
   };
 
   const handleDelete = async (url: string) => {
-    if (confirm("Are you sure you want to delete this item?")) {
-      const all = await getSavedVideos();
-      const next = all.filter(v => v.url !== url);
-      await saveVideos(next);
-      setItems(next);
-    }
+    setConfirmDialog({
+      message: "Are you sure you want to delete this item?",
+      onConfirm: async () => {
+        const all = await getSavedVideos();
+        const next = all.filter(v => v.url !== url);
+        await saveVideos(next);
+        setItems(next);
+        setConfirmDialog(null);
+      }
+    });
   };
 
-  const handleEdit = async (video: VideoData) => {
-    const newTitle = window.prompt("Edit Title:", video.title);
-    if (newTitle !== null) {
-      const all = await getSavedVideos();
-      const idx = all.findIndex(v => v.url === video.url);
-      if (idx !== -1) {
-        all[idx].title = newTitle;
-        await saveVideos(all);
-        setItems(all);
+  const handleEdit = (video: VideoData) => {
+    setEditingItem({current: JSON.parse(JSON.stringify(video)), original: video});
+  };
+
+  const saveEditedItem = async (updatedVideo: VideoData, originalVideo: VideoData) => {
+    const all = await getSavedVideos();
+    const idx = all.findIndex(v => v.url === originalVideo.url);
+    if (idx !== -1) {
+      all[idx] = updatedVideo;
+      await saveVideos(all);
+      setItems(all);
+      
+      // If URL or rawVideoSrc was changed, trigger a rescan
+      if ((updatedVideo.url !== originalVideo.url || updatedVideo.rawVideoSrc !== originalVideo.rawVideoSrc) && updatedVideo.type === 'video') {
+        browser.runtime.sendMessage({
+          action: "generate_preview",
+          data: { 
+            url: updatedVideo.rawVideoSrc || updatedVideo.url,
+            duration: typeof updatedVideo.duration === 'number' ? updatedVideo.duration : 60
+          }
+        });
       }
     }
+    setEditingItem(null);
   };
 
   const handleWipeVault = async () => {
-    if (confirm("Are you sure you want to completely wipe your vault? This cannot be undone.")) {
-      await saveVideos([]);
-      setItems([]);
-      setIsSettingsOpen(false);
-    }
+    setConfirmDialog({
+      message: "Are you sure you want to completely wipe your vault? This cannot be undone.",
+      onConfirm: async () => {
+        await saveVideos([]);
+        setItems([]);
+        setIsSettingsOpen(false);
+        setConfirmDialog(null);
+      }
+    });
   };
-  const [groupBy, setGroupBy] = useState('Hostname');
-  const [sortBy, setSortBy] = useState<keyof VideoData | 'DateDesc' | 'DateAsc'>('DateDesc');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [viewSize, setViewSize] = useState<number>(3); // 1: Details, 2: list, 3: Small, 4: Medium, 5: Large, 6: Biggest
+  const [groupBy, setGroupBy] = useState(() => localStorage.getItem('vault-group-by') || 'Hostname');
+  const [sortBy, setSortBy] = useState<keyof VideoData | 'DateDesc' | 'DateAsc'>(() => (localStorage.getItem('vault-sort-by') as any) || 'DateDesc');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => (localStorage.getItem('vault-sort-order') as any) || 'desc');
+  const [viewSize, setViewSize] = useState<number>(() => {
+    const saved = localStorage.getItem('vault-view-size');
+    return saved ? parseInt(saved, 10) : 3;
+  }); // 1: Details, 2: list, 3: Small, 4: Medium, 5: Large, 6: Biggest
+
+  useEffect(() => {
+    localStorage.setItem('vault-group-by', groupBy);
+  }, [groupBy]);
+
+  useEffect(() => {
+    localStorage.setItem('vault-sort-by', sortBy);
+  }, [sortBy]);
+
+  useEffect(() => {
+    localStorage.setItem('vault-sort-order', sortOrder);
+  }, [sortOrder]);
+
+  useEffect(() => {
+    localStorage.setItem('vault-view-size', viewSize.toString());
+  }, [viewSize]);
+
   const [isDimmed, setIsDimmed] = useState(false); // Player Dimmer State
 
   // Layout & Pagination states
@@ -211,21 +268,45 @@ export const VaultDashboard: React.FC = () => {
   const [pinSettings, setPinSettings] = useState<any>(null);
 
   // Browser Sync State
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(() => {
+    const saved = localStorage.getItem('vault-sync-enabled');
+    return saved === 'true';
+  });
   const [isFirefox] = useState(() => navigator.userAgent.toLowerCase().includes('firefox'));
 
   useEffect(() => {
+    localStorage.setItem('vault-sync-enabled', isSyncing.toString());
+  }, [isSyncing]);
+
+  useEffect(() => {
     const savedTheme = localStorage.getItem('vault-theme');
-      if (savedTheme) {
-        const themeNum = parseInt(savedTheme, 10);
-        setCurrentTheme(themeNum);
-        const mode = VAULT_THEMES[themeNum]?.mode || 'dark';
-        document.documentElement.setAttribute('data-theme', getThemeClass(themeNum));
-        document.documentElement.classList.toggle('dark', mode === 'dark');
-      } else {
-        document.documentElement.setAttribute('data-theme', getThemeClass(3));
-        document.documentElement.classList.add('dark');
-      }
+    if (savedTheme) {
+      const themeNum = parseInt(savedTheme, 10);
+      setCurrentTheme(themeNum);
+      const mode = VAULT_THEMES[themeNum]?.mode || 'dark';
+      document.documentElement.setAttribute('data-theme', getThemeClass(themeNum));
+      document.documentElement.classList.toggle('dark', mode === 'dark');
+    } else {
+      document.documentElement.setAttribute('data-theme', getThemeClass(3));
+      document.documentElement.classList.add('dark');
+    }
+
+    const savedSidebar = localStorage.getItem('vault-sidebar-open');
+    if (savedSidebar !== null) {
+      setSidebarOpen(savedSidebar === 'true');
+    }
+
+    const savedViewSize = localStorage.getItem('vault-view-size');
+    if (savedViewSize) setViewSize(parseInt(savedViewSize, 10));
+
+    const savedGroupBy = localStorage.getItem('vault-group-by');
+    if (savedGroupBy) setGroupBy(savedGroupBy);
+
+    const savedSortBy = localStorage.getItem('vault-sort-by');
+    if (savedSortBy) setSortBy(savedSortBy as any);
+
+    const savedSortOrder = localStorage.getItem('vault-sort-order');
+    if (savedSortOrder) setSortOrder(savedSortOrder as 'asc' | 'desc');
 
     const load = async () => {
       const settings = await getPinSettings();
@@ -235,20 +316,42 @@ export const VaultDashboard: React.FC = () => {
       setItems(all || []);
     };
     load();
+    
+    // Listen for browser sync updates
+    const handleStorageChange = (changes: any, areaName: string) => {
+      if (areaName === 'local' && changes.vault_videos) {
+        setItems(changes.vault_videos.newValue || []);
+      }
+    };
+    if (browser.storage && browser.storage.onChanged) {
+      browser.storage.onChanged.addListener(handleStorageChange);
+    }
+    return () => {
+      if (browser.storage && browser.storage.onChanged) {
+        browser.storage.onChanged.removeListener(handleStorageChange);
+      }
+    };
   }, []);
 
   const togglePin = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const enabled = e.target.checked;
     if (enabled) {
-      const newPin = window.prompt("Enter a new 4 or 6 digit PIN:");
-      if (newPin && (newPin.length === 4 || newPin.length === 6) && /^\d+$/.test(newPin)) {
-        const updated = { ...pinSettings, enabled: true, pin: newPin, lastUnlocked: Date.now() };
-        await savePinSettings(updated);
-        setPinSettings(updated);
-      } else {
-        alert("Invalid PIN. It must be 4 or 6 digits.");
-        e.target.checked = false;
-      }
+      setPromptDialog({
+        message: "Enter a new 4 or 6 digit PIN:",
+        type: "password",
+        onConfirm: async (newPin) => {
+          if (newPin && (newPin.length === 4 || newPin.length === 6) && /^\d+$/.test(newPin)) {
+            const updated = { ...pinSettings, enabled: true, pin: newPin, lastUnlocked: Date.now() };
+            await savePinSettings(updated);
+            setPinSettings(updated);
+          } else {
+            setToastMessage({msg: "Invalid PIN. It must be 4 or 6 digits.", type: "error"});
+          }
+          setPromptDialog(null);
+        }
+      });
+      // Temporarily revert UI checkbox until confirmed
+      e.target.checked = false;
     } else {
       const updated = { ...pinSettings, enabled: false };
       await savePinSettings(updated);
@@ -266,6 +369,13 @@ export const VaultDashboard: React.FC = () => {
      const updated = { ...pinSettings, lockTimeout: timeout };
      await savePinSettings(updated);
      setPinSettings(updated);
+  };
+  const changeTheme = (id: number) => {
+    setCurrentTheme(id);
+    const mode = VAULT_THEMES[id]?.mode || 'dark';
+    document.documentElement.setAttribute('data-theme', getThemeClass(id));
+    document.documentElement.classList.toggle('dark', mode === 'dark');
+    localStorage.setItem('vault-theme', id.toString());
   };
 
   const cycleTheme = () => {
@@ -375,15 +485,8 @@ export const VaultDashboard: React.FC = () => {
     <div className="flex flex-col h-screen overflow-hidden bg-vault-bg text-vault-text font-sans antialiased transition-colors duration-500">
       
       {/* HEADER */}
-      <header className="flex-none h-16 flex items-center justify-between px-4 md:px-6 z-20 vault-card rounded-none border-t-0 border-x-0 border-b shadow-sm relative">
+      <header style={{ backgroundColor: 'var(--vault-card-bg)' }} className="flex-none h-16 flex items-center justify-between px-4 md:px-6 z-20 backdrop-blur-md border-b border-vault-border shadow-sm relative">
         <div className="flex items-center gap-4">
-          <button 
-            onClick={() => setSidebarOpen(!isSidebarOpen)}
-            className="vault-btn p-1.5 h-8 w-8 flex items-center justify-center border-none hover:bg-vault-cardBg"
-          >
-            <Shield size={20} className="text-vault-accent" />
-          </button>
-          
           <div className="flex items-center gap-3">
             <div className="text-vault-accent">
               <Shield size={24} strokeWidth={2.5} />
@@ -400,11 +503,11 @@ export const VaultDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="relative group flex items-center gap-2">
+          <div className="relative group flex items-center">
             <select
               value={searchField}
               onChange={(e) => setSearchField(e.target.value as keyof VideoData)}
-              className="bg-vault-cardBg border border-vault-border rounded-l-full px-3 py-1.5 text-xs text-vault-text focus:border-vault-accent outline-none appearance-none"
+              className="bg-vault-cardBg border border-vault-border border-r-0 rounded-l-full px-4 py-2 text-sm text-vault-text focus:border-vault-accent focus:z-10 outline-none appearance-none cursor-pointer"
             >
               <option value="title">Title</option>
               <option value="author">Author</option>
@@ -416,30 +519,19 @@ export const VaultDashboard: React.FC = () => {
               <option value="tags">Tags</option>
             </select>
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted group-focus-within:text-vault-accent transition-colors" size={14} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted group-focus-within:text-vault-accent transition-colors" size={16} />
               <input 
                 type="text"
                 placeholder={`Search in ${searchField}...`}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-1.5 w-full bg-vault-cardBg border border-vault-border rounded-r-full outline-none focus:border-vault-accent text-sm transition-all"
+                className="pl-9 pr-4 py-2 w-64 bg-vault-cardBg border border-vault-border rounded-r-full outline-none focus:border-vault-accent focus:z-10 text-sm transition-all"
               />
             </div>
           </div>
 
-          <button 
-            onClick={cycleTheme}
-            className="vault-btn flex items-center justify-center p-1.5 rounded-full h-8 w-8 relative group"
-            title={`Theme ${currentTheme}/9`}
-          >
-            <Palette size={16} className="group-hover:rotate-12 transition-transform" />
-          </button>
-            <button onClick={() => setIsSettingsOpen(true)} className="vault-btn flex items-center justify-center p-1.5 rounded-full h-8 w-8 group" title="Advanced Options & Export">
-              <Settings size={16} className="text-vault-accent group-hover:rotate-90 transition-transform duration-300" />
-            </button>
-
-          <button className="vault-btn flex items-center justify-center p-1.5 rounded-full h-8 w-8 group">
-            <Shield size={16} className="text-vault-accent group-hover:scale-110 transition-transform duration-300" />
+          <button onClick={() => setIsSettingsOpen(true)} className="vault-btn flex items-center justify-center p-1.5 rounded-full h-8 w-8 group" title="Advanced Options & Export">
+            <Settings size={16} className="text-vault-accent group-hover:rotate-90 transition-transform duration-300" />
           </button>
         </div>
       </header>
@@ -447,12 +539,14 @@ export const VaultDashboard: React.FC = () => {
       {/* VIEWPORT */}
       <div className="flex flex-1 overflow-hidden relative">
         
-        {/* SIDEBAR */}
-        <aside className={cn(
-          "flex-none bg-vault-cardBg/30 border-r border-vault-border transition-all duration-300 overflow-y-auto z-10 flex flex-col gap-6",
-          isSidebarOpen ? "w-64 p-4 opacity-100" : "w-0 p-0 opacity-0 border-r-0"
-        )}>
-          <div className="space-y-4">
+        {/* SIDEBAR CONTAINER */}
+        <div className="flex flex-none relative z-20">
+          {/* SIDEBAR */}
+          <aside className={cn(
+            "bg-vault-cardBg/30 border-r border-vault-border transition-all duration-300 overflow-y-auto h-full flex flex-col gap-6",
+            isSidebarOpen ? "w-64 p-4 opacity-100 visible" : "w-0 p-0 opacity-0 invisible border-none"
+          )}>
+            <div className="space-y-4">
             {/* View Mode */}
             <div>
               <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
@@ -472,6 +566,21 @@ export const VaultDashboard: React.FC = () => {
               </div>
             </div>
 
+            {/* Theme Config */}
+            <div>
+              <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
+                <Palette size={14} className="text-vault-accent" /> UI Theme
+              </label>
+              <select 
+                value={currentTheme}
+                onChange={(e) => changeTheme(parseInt(e.target.value))}
+                className="w-full bg-vault-bg border border-vault-border text-xs p-1.5 rounded outline-none focus:border-vault-accent text-vault-text"
+              >
+                {Object.values(VAULT_THEMES).map(t => (
+                  <option key={t.id} value={t.id}>{t.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} ({t.mode})</option>
+                ))}
+              </select>
+            </div>
             {/* Grouping */}
             <div>
               <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
@@ -608,12 +717,14 @@ export const VaultDashboard: React.FC = () => {
               <button
                 onClick={() => setIsSyncing(!isSyncing)}
                 className={cn(
-                  "w-full vault-btn p-2 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 border-dashed",
-                  isSyncing ? "border-vault-accent text-vault-accent bg-vault-accent/5" : "border-vault-border text-vault-muted opacity-60 hover:opacity-100"
+                  "w-full vault-btn p-2 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2",
+                  isSyncing 
+                    ? "bg-vault-accent text-vault-bg border-none hover:border-dashed hover:border-vault-bg/50 hover:bg-vault-accentHover" 
+                    : "border-dashed border-vault-border text-vault-muted opacity-60 hover:opacity-100"
                 )}
                 title={isFirefox ? "Use Firefox Sync Storage" : "Use Chrome Sync Storage"}
               >
-                <div className={cn("w-1.5 h-1.5 rounded-full", isSyncing ? "bg-vault-accent animate-pulse" : "bg-vault-muted")} />
+                <div className={cn("w-1.5 h-1.5 rounded-full", isSyncing ? "bg-vault-bg animate-pulse" : "bg-vault-muted")} />
                 {isSyncing ? "Sync Enabled" : "Enable Browser Sync"}
               </button>
               <p className="text-[9px] text-vault-muted mt-2 leading-relaxed opacity-60 italic">
@@ -631,6 +742,20 @@ export const VaultDashboard: React.FC = () => {
             </div>
           </div>
         </aside>
+          
+          {/* TOGGLE BAR */}
+          <div 
+            onClick={() => {
+              const newState = !isSidebarOpen;
+              setSidebarOpen(newState);
+              localStorage.setItem('vault-sidebar-open', newState.toString());
+            }}
+            className="w-4 bg-vault-cardBg/50 hover:bg-vault-cardBg border-r border-vault-border flex flex-col items-center justify-center cursor-pointer transition-colors group z-30"
+            title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+          >
+            <div className="w-1 h-8 rounded-full bg-vault-border group-hover:bg-vault-accent transition-colors" />
+          </div>
+        </div>
 
         {/* MAIN ITEM WINDOW */}
         <main ref={mainRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 md:p-6 bg-vault-bg/50 scroll-smooth">
@@ -714,8 +839,8 @@ export const VaultDashboard: React.FC = () => {
                         viewSize === 1 
                           ? "flex-row items-center gap-2 h-10 px-3 py-1 border-b border-vault-border rounded-none shadow-none hover:bg-vault-cardBg/50" 
                           : viewSize === 2 
-                            ? "flex-row items-center gap-4 h-24 p-4 hover:-translate-y-1" 
-                            : "flex-col h-[380px]"
+                            ? "flex-row items-stretch gap-4 h-[110px] p-0 hover:-translate-y-1" 
+                            : "flex-col h-[280px]"
                       )}>
                         
                         {/* THUMBNAIL AREA */}
@@ -733,7 +858,7 @@ export const VaultDashboard: React.FC = () => {
                                 window.open(fav.url, '_blank');
                               }
                             }}
-                            className={viewSize === 2 ? "relative w-32 h-full flex-none bg-vault-cardBg/50 overflow-hidden cursor-pointer group/thumb rounded-l-lg border-r border-vault-border" : "relative w-full aspect-video flex-none bg-vault-cardBg/50 overflow-hidden cursor-pointer group/thumb border-b border-vault-border rounded-t-lg"}
+                            className={viewSize === 2 ? "relative w-2/5 flex-none bg-vault-cardBg/50 overflow-hidden cursor-pointer group/thumb rounded-l-lg border-r border-vault-border" : "relative w-full h-[180px] flex-none bg-vault-cardBg/50 overflow-hidden cursor-pointer group/thumb border-b border-vault-border rounded-t-lg"}
                           >
                             {fav.type === 'video' ? (
                               <PreviewThumb video={fav} />
@@ -741,9 +866,9 @@ export const VaultDashboard: React.FC = () => {
                               fav.thumbnail ? (
                                 <img src={fav.thumbnail} alt={fav.title} className="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-105" />
                               ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-vault-cardBg to-vault-bg text-vault-muted">
-                                    <Shield size={32} className="opacity-20 mb-2" />
-                                    <span className="text-[10px] font-mono opacity-50">NO PREVIEW</span>
+                                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-vault-cardBg to-vault-bg/50">
+                                    <Shield size={32} className="opacity-10 mb-1" />
+                                    <span className="text-[10px] font-mono opacity-30">NO PREVIEW</span>
                                 </div>
                               )
                             )}
@@ -755,17 +880,20 @@ export const VaultDashboard: React.FC = () => {
                             <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-vault-accent/40 z-20 transition-all group-hover/thumb:w-4 group-hover/thumb:h-4 group-hover/thumb:border-vault-accent" />
 
                             {/* Internal Thumbnail Actions */}
-                            <div className="absolute top-2 left-2 z-30 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex flex-col gap-2">
-                              <button onClick={(e) => { e.stopPropagation(); handleEdit(fav); }} className="thumb-action p-1.5 bg-black/60 hover:bg-vault-accent text-white rounded shadow-lg backdrop-blur-md transition-all hover:scale-110" title="Edit Metadata">
-                                <Edit2 size={12} />
-                              </button>
-                            </div>
-                            
-                            <div className="absolute top-2 right-2 z-30 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex flex-col gap-2">
-                              <button onClick={(e) => { e.stopPropagation(); handleDelete(fav.url); }} className="thumb-action p-1.5 bg-black/60 hover:bg-red-500 text-white rounded shadow-lg backdrop-blur-md transition-all hover:scale-110" title="Delete Item">
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
+                            {viewSize > 2 && (
+                              <>
+                                <div className="absolute top-2 left-2 z-30 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex flex-col gap-2">
+                                  <button onClick={(e) => { e.stopPropagation(); handleEdit(fav); }} className="thumb-action p-1.5 bg-black/60 hover:bg-vault-accent text-white rounded shadow-lg backdrop-blur-md transition-all hover:scale-110" title="Edit Metadata">
+                                    <Edit2 size={12} />
+                                  </button>
+                                </div>
+                                <div className="absolute top-2 right-2 z-30 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex flex-col gap-2">
+                                  <button onClick={(e) => { e.stopPropagation(); handleDelete(fav.url); }} className="thumb-action p-1.5 bg-black/60 hover:bg-red-500 text-white rounded shadow-lg backdrop-blur-md transition-all hover:scale-110" title="Delete Item">
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              </>
+                            )}
 
                             {/* Duration Badge */}
                             {fav.duration && (
@@ -800,11 +928,14 @@ export const VaultDashboard: React.FC = () => {
                         )}
 
                         {/* DETAILS AREA */}
-                        <div className={cn("z-10 relative flex flex-col flex-1", viewSize === 1 ? "flex-row items-center justify-between w-full" : "p-4")}>
+                        <div className={cn("z-10 relative flex flex-col flex-1", viewSize === 1 ? "flex-row items-center justify-between w-full min-h-[60px]" : "p-4")}>
                           
                           <div className={cn("flex justify-between items-start mb-2", viewSize === 1 && "mb-0")}>
                             <div className="flex gap-2 items-center">
-                              <span className="text-[10px] uppercase font-bold tracking-widest text-vault-bg bg-vault-muted px-2 py-0.5 rounded-sm">
+                              <span className={cn(
+                                "text-[10px] uppercase font-bold tracking-widest text-vault-bg bg-vault-muted px-2 py-0.5 rounded-sm",
+                                viewSize === 1 && "flex items-center justify-center h-5"
+                              )}>
                                 {viewSize > 1 ? `#${idx + 1 + (currentPage * itemsPerPage)}` : 'V-ID'}
                               </span>
                             </div>
@@ -829,7 +960,7 @@ export const VaultDashboard: React.FC = () => {
                                 {fav.title || 'Untitled Reference'}
                               </h3>
                               <p className="text-xs text-vault-muted truncate max-w-[250px] font-mono opacity-80" title={fav.url}>
-                                {fav.domain || new URL(fav.url).hostname.replace('www.', '')}
+                                {(fav.domain && fav.domain !== 'Unknown') ? fav.domain : (() => { try { return new URL(fav.url).hostname.replace('www.', '') } catch { return 'unknown' } })()}
                               </p>
                             </div>
                             
@@ -837,6 +968,9 @@ export const VaultDashboard: React.FC = () => {
                               <div className="mt-3 space-y-1 mb-2 flex-1">
                                 {fav.author && (
                                   <p className="text-[11px] text-vault-text line-clamp-1"><span className="text-vault-muted">By:</span> {fav.author}</p>
+                                )}
+                                {fav.actors && fav.actors.length > 0 && (
+                                  <p className="text-[11px] text-vault-accent line-clamp-1 opacity-90"><span className="text-vault-muted">With:</span> {fav.actors.join(', ')}</p>
                                 )}
                                 {(fav.views || fav.likes) && (
                                   <p className="text-[11px] text-vault-muted flex gap-3 mt-1">
@@ -901,10 +1035,122 @@ export const VaultDashboard: React.FC = () => {
         </main>
       </div>
 
+      {/* TOAST SYSTEM */}
+      {toastMessage && (
+        <div className={cn(
+          "fixed bottom-6 right-6 z-[100] px-4 py-2 rounded shadow-2xl font-bold text-sm tracking-wide animate-in slide-in-from-bottom border",
+          toastMessage.type === 'success' ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-red-500/20 text-red-400 border-red-500/30"
+        )}>
+          {toastMessage.msg}
+        </div>
+      )}
+
+      {/* CONFIRM MODAL */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-vault-cardBg border border-vault-border rounded-lg shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95">
+            <h3 className="text-vault-text font-bold mb-4 flex items-center gap-2"><AlertTriangle size={20} className="text-vault-accent" /> Confirm Action</h3>
+            <p className="text-vault-muted text-sm">{confirmDialog.message}</p>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setConfirmDialog(null)} className="px-4 py-1.5 text-xs font-bold text-vault-muted hover:text-vault-text transition-colors">Cancel</button>
+              <button onClick={confirmDialog.onConfirm} className="px-4 py-1.5 text-xs font-black bg-vault-accent text-vault-bg rounded hover:bg-vault-accentHover transition-all shadow-lg">Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PROMPT MODAL */}
+      {promptDialog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-vault-cardBg border border-vault-border rounded-lg shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95">
+            <h3 className="text-vault-text font-bold mb-4 flex items-center gap-2"><Shield size={20} className="text-vault-accent" /> Input Required</h3>
+            <p className="text-vault-muted text-sm mb-3">{promptDialog.message}</p>
+            <input 
+              autoFocus
+              type={promptDialog.type === 'password' ? 'password' : 'text'}
+              className="w-full bg-vault-bg border border-vault-border rounded p-2 text-sm text-vault-text focus:outline-none focus:border-vault-accent focus:ring-1 focus:ring-vault-accent/30"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') promptDialog.onConfirm((e.target as HTMLInputElement).value);
+                if (e.key === 'Escape') setPromptDialog(null);
+              }}
+            />
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setPromptDialog(null)} className="px-4 py-1.5 text-xs font-bold text-vault-muted hover:text-vault-text transition-colors">Cancel</button>
+              <button onClick={(e) => promptDialog.onConfirm((e.currentTarget.parentElement?.previousElementSibling as HTMLInputElement).value)} className="px-4 py-1.5 text-xs font-black bg-vault-accent text-vault-bg rounded hover:bg-vault-accentHover transition-all shadow-lg">Submit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT MODAL */}
+      {editingItem && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setEditingItem(null)}>
+          <div className="bg-vault-cardBg border border-vault-border rounded-lg shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-vault-border">
+              <h2 className="text-lg font-bold text-vault-text flex items-center gap-2">
+                <Edit2 size={20} className="text-vault-accent" /> Edit Metadata
+              </h2>
+              <button onClick={() => setEditingItem(null)} className="vault-btn p-1.5 rounded-full hover:bg-vault-bg border-none">
+                <X size={16} className="text-vault-muted" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto space-y-4">
+              {['title', 'author', 'domain', 'url', 'rawVideoSrc', 'quality', 'resolution', 'size', 'description'].map((field) => (
+                <div key={field} className="flex flex-col gap-1">
+                  <label className="text-xs font-bold uppercase tracking-widest text-vault-muted">{field}</label>
+                  {field === 'description' ? (
+                     <textarea 
+                       className="w-full bg-vault-bg border border-vault-border rounded p-2 text-sm text-vault-text focus:border-vault-accent outline-none min-h-[80px]"
+                       value={(editingItem.current as any)[field] || ''}
+                       onChange={(e) => setEditingItem({...editingItem, current: {...editingItem.current, [field]: e.target.value}})}
+                     />
+                  ) : (
+                    <input 
+                      type={field === 'url' ? 'url' : 'text'}
+                      className="w-full bg-vault-bg border border-vault-border rounded p-2 text-sm text-vault-text focus:border-vault-accent outline-none"
+                      value={(editingItem.current as any)[field] || ''}
+                      onChange={(e) => setEditingItem({...editingItem, current: {...editingItem.current, [field]: e.target.value}})}
+                    />
+                  )}
+                </div>
+              ))}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold uppercase tracking-widest text-vault-muted">Tags (Comma separated)</label>
+                <input 
+                  type="text"
+                  className="w-full bg-vault-bg border border-vault-border rounded p-2 text-sm text-vault-text focus:border-vault-accent outline-none"
+                  value={editingItem.current.tags?.join(', ') || ''}
+                  onChange={(e) => setEditingItem({...editingItem, current: {...editingItem.current, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean)}})}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold uppercase tracking-widest text-vault-muted">Actors (Comma separated)</label>
+                <input 
+                  type="text"
+                  className="w-full bg-vault-bg border border-vault-border rounded p-2 text-sm text-vault-text focus:border-vault-accent outline-none"
+                  value={editingItem.current.actors?.join(', ') || ''}
+                  onChange={(e) => setEditingItem({...editingItem, current: {...editingItem.current, actors: e.target.value.split(',').map(t => t.trim()).filter(Boolean)}})}
+                />
+              </div>
+            </div>
+            <div className="p-4 border-t border-vault-border flex justify-end gap-3 bg-vault-bg">
+              <button onClick={() => setEditingItem(null)} className="px-5 py-2 text-xs font-bold text-vault-muted hover:text-vault-text transition-colors">Cancel</button>
+              <button onClick={() => saveEditedItem(editingItem.current, editingItem.original)} className="px-5 py-2 text-xs font-black bg-vault-accent text-vault-bg rounded hover:bg-vault-accentHover transition-all shadow-lg">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* SETTINGS & EXPORT MODAL */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-vault-bg border border-vault-border rounded-lg shadow-2xl w-full max-w-2xl p-0 relative flex flex-col animate-in zoom-in-95 duration-200">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-pointer"
+          onClick={() => setIsSettingsOpen(false)}
+        >
+          <div 
+            className="bg-vault-bg border border-vault-border rounded-lg shadow-2xl w-full max-w-2xl p-0 relative flex flex-col animate-in zoom-in-95 duration-200 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-vault-border bg-vault-cardBg">
               <h2 className="text-lg font-bold text-vault-text flex items-center gap-2">

@@ -17,6 +17,7 @@ export const VideoDataSchema = z.object({
   dislikes: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
+  actors: z.array(z.string()).optional(),
   date: z.string().nullable().optional(),
   datePublished: z.string().nullable().optional(),
   dateSaved: z.number().optional(),

@@ -78,13 +78,14 @@
 - [x] **Real-time Updates**: MutationObserver automatically updates indicators when site content scrolls/reloads.
 
 ## NEXT STEPS
-- [x] Fix database wipe issue: The database gets wiped when saving an item while the dashboard is locked. It should allow adding items even if locked.
-- [x] Fix heart indicator position: The heart indicator (from Phase 7) is currently positioned under the cursor when receiving a callback, but the user might have moved. It needs to be tied to the original item.
-- [x] Notification stacking: Implement a system to stack notifications for multiple requests, with a limit of 10 concurrent requests. Notifications should disappear when resolved.
-- [x] Button styling (Sync enabled): When sync is enabled, the button should be fully colored (like on hover but without dashed border). On hover, add the dashed border.
-- [x] Details view UI (view mode == 1): 
-    - [x] Make main item taller (60px).
-    - [x] Fix "V-ID" badge centering.
+1. The database gets wiped when saving an item while the deashboard is locked. we should still be able to add items just not access the dashboard.
+
+2. Check where we add the heart when receiving the callback from the vault. It is positioned under the cursor but the user has most likely moved at this point so we need to tie the callback to the original item and make sure it does not break the UI either.
+
+3. Add a system to stack the notifications when firing multiples requests to the vault, once a call is resolved, the notification should disappear. Add a maximum of 10 concurrent requests.
+
+4. When sync is enabled, leave the button fully colored, like when we hover it except without the dashed border. On hover, add the dashed border effect.
+
 
 ## 🔮 Phase 8: Future Vault Features
 - [ ] **Vault Portability**: Export/Import JSON logic.

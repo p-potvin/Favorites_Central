@@ -34,9 +34,9 @@ export async function isVaultLocked(): Promise<boolean> {
   return elapsed > settings.lockTimeout;
 }
 
-export async function getSavedVideos(): Promise<VideoData[]> {
+export async function getSavedVideos(ignoreLock = false): Promise<VideoData[]> {
   const locked = await isVaultLocked();
-  if (locked) {
+  if (locked && !ignoreLock) {
     console.warn("[VaultAuth] Attempted access to locked database.");
     return [];
   }
