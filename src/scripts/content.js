@@ -158,7 +158,8 @@ function extractSurroundingMetadata(baseEl, existingTitle) {
         views: "",
         likes: "",
         date: "",
-        tags: []
+        tags: [],
+        actors: []
     };
     try {
         let container = baseEl;
@@ -209,10 +210,24 @@ function extractSurroundingMetadata(baseEl, existingTitle) {
                 // Potential fallback author
                 // meta.author = text;
             }
-            // Date (e.g., "2 hours ago", "Jan 12", "2024-01-01")
-            if (/(?:ago|yesterday|today|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(lower) && text.length < 20) {
+            // Date (e.g., "2 hours ago", "Jan 12", "2024-01-01") vs Actors
+            const isStrictDate = /(?:\d+\s+(?:min|hour|day|week|month|year)s?\s+ago)|(?:yesterday|today)|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}|^\d{4}[-/]\d{2}[-/]\d{2}$/i.test(text);
+            const isOldSloppyDate = /(?:ago|yesterday|today|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(lower);
+            if (isStrictDate && text.length < 20) {
                 if (!meta.date)
                     meta.date = text;
+            }
+            else if (isOldSloppyDate && text.length < 30) {
+                // Previously, names like "Julia" or "Mark" got caught here. If it's not a strict date, it's likely an actor.
+                if (!meta.actors.includes(text))
+                    meta.actors.push(text);
+            }
+            else if (el.tagName === 'A' && text.split(' ').length <= 3 && text.length > 2 && text.length < 25 && !text.startsWith('#') && !text.startsWith('@')) {
+                const hint = (el.className + ' ' + el.getAttribute('href')).toLowerCase();
+                if (hint.includes('model') || hint.includes('actor') || hint.includes('pornstar') || hint.includes('/star/')) {
+                    if (!meta.actors.includes(text))
+                        meta.actors.push(text);
+                }
             }
             // Heuristic Title (if it's a heading and we don't have a good one)
             if (/^H[1-4]$/.test(el.tagName)) {
@@ -252,7 +267,13 @@ function attemptExtraction(el) {
             }
         }
     }
-    const url = link?.href || window.location.href;
+    let url = link?.href;
+    if (!url && el && el.src) {
+        url = el.src;
+    }
+    if (!url) {
+        url = window.location.href;
+    }
     let title = "Untitled Media";
     if (el) {
         title = el.getAttribute("title") || el.getAttribute("aria-label") || el.getAttribute("alt") || "";
@@ -263,7 +284,7 @@ function attemptExtraction(el) {
     if (!title) {
         title = document.title;
     }
-    let extraMeta = { author: "", views: "", likes: "", date: "", tags: [] };
+    let extraMeta = { author: "", views: "", likes: "", date: "", tags: [], actors: [] };
     if (el) {
         const enriched = extractSurroundingMetadata(el, title);
         title = enriched.title;
@@ -272,6 +293,7 @@ function attemptExtraction(el) {
         extraMeta.likes = enriched.likes;
         extraMeta.date = enriched.date;
         extraMeta.tags = enriched.tags;
+        extraMeta.actors = enriched.actors;
     }
     let type = 'link';
     if (el) {
@@ -284,18 +306,20 @@ function attemptExtraction(el) {
             type = 'audio';
     }
     if (type === 'link') {
-        if (url.match(/\.(mp4|webm|mkv|m3u8)$/i))
+        const urlWithoutQuery = url.split('?')[0];
+        if (urlWithoutQuery.match(/\.(mp4|webm|mkv|m3u8)$/i))
             type = 'video';
-        else if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+        else if (urlWithoutQuery.match(/\.(jpg|jpeg|png|gif|webp)$/i))
             type = 'image';
-        else if (url.match(/\.(mp3|wav|flac|ogg)$/i))
+        else if (urlWithoutQuery.match(/\.(mp3|wav|flac|ogg)$/i))
             type = 'audio';
-        else if (url.match(/\.torrent$/i) || url.startsWith('magnet:'))
+        else if (urlWithoutQuery.match(/\.torrent$/i) || url.startsWith('magnet:'))
             type = 'torrent';
     }
     const rawData = {
         title: title.trim().substring(0, 100),
         url: url,
+        domain: window.location.hostname.replace('www.', ''),
         type: type,
         thumbnail: "",
         timestamp: Date.now(),

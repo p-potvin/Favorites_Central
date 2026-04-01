@@ -261,6 +261,10 @@ async function runCapturePipeline(data, tabId, windowId) {
             }
         }
         const saved = await getSavedVideos();
+        // Check if item already exists based on URL to prevent duplicates
+        if (saved.some(v => v.url === data.url)) {
+            return { success: false, message: "Item already in vault" };
+        }
         saved.push(data);
         await saveVideos(saved);
         /**
