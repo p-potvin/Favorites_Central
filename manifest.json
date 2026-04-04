@@ -16,7 +16,9 @@
     "scripting",
     "alarms",
     "tabs",
-    "unlimitedStorage"
+    "unlimitedStorage",
+    "webRequest",
+    "downloads"
   ],
   "host_permissions": [
     "<all_urls>"

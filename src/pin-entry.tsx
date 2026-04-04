@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import browser from 'webextension-polyfill';
 import { getPinSettings, savePinSettings, isVaultLocked } from './lib/storage-vault';
-import { Shield, Lock, Unlock, Key, RefreshCw } from 'lucide-react';
+import * as Icons from './lib/icons';
 import './styles/globals.css';
 
 const PinPopup: React.FC = () => {
@@ -96,7 +96,7 @@ const PinPopup: React.FC = () => {
             box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.5);
           }
         `}</style>
-        <Shield size={32} className="text-[#3b82f6]" />
+        <Icons.Shield size={32} className="text-[#3b82f6]" />
         <p className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold">Vault Unsecured</p>
         <button
           onClick={() => {
@@ -128,7 +128,7 @@ const PinPopup: React.FC = () => {
             box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.5);
           }
         `}</style>
-        <Unlock size={32} className="text-[#10b981] animate-pulse" />
+        <Icons.Unlock size={32} className="text-[#10b981] animate-pulse" />
         <p className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-[#10b981]">Vault Unlocked</p>
         <div className="w-full h-px bg-[#1e293b]" />
         <button
@@ -147,7 +147,7 @@ const PinPopup: React.FC = () => {
   return (
     <div className="w-[320px] p-6 bg-vault-bg text-vault-text flex flex-col items-center gap-6 select-none">
       <div className="relative">
-        <Lock size={32} className={error ? "text-red-500 animate-bounce" : "text-vault-accent"} />
+        <Icons.Lock size={32} className={error ? "text-red-500 animate-bounce" : "text-vault-accent"} />
         <div className="absolute -inset-1 blur-lg bg-vault-accent/20 rounded-full" />
       </div>
       

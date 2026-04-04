@@ -2,6 +2,46 @@ import browser from 'webextension-polyfill';
 import { getSavedVideos, saveVideos } from '../../src/lib/storage-vault';
 import { STORAGE_KEYS } from '../../src/lib/constants';
 /**
+ * Extensive Logging Utility
+ */
+class DebugLogger {
+    logs = [];
+    log(msg, ...args) {
+        const time = new Date().toISOString();
+        const line = `[${time}] [VaultAuth-Debug] ${msg} ${args.map((a) => typeof a === 'object' ? JSON.stringify(a) : a).join(' ')}`;
+        console.log(line);
+        this.logs.push(line);
+        if (this.logs.length > 500)
+            this.logs.shift();
+    }
+    warn(msg, ...args) {
+        const time = new Date().toISOString();
+        const line = `[${time}] [VaultAuth-Warn] ${msg} ${args.map((a) => typeof a === 'object' ? JSON.stringify(a) : a).join(' ')}`;
+        console.warn(line);
+        this.logs.push(line);
+        if (this.logs.length > 500)
+            this.logs.shift();
+    }
+    error(msg, ...args) {
+        const time = new Date().toISOString();
+        const line = `[${time}] [VaultAuth-Error] ${msg} ${args.map((a) => typeof a === 'object' ? JSON.stringify(a) : a).join(' ')}`;
+        console.error(line);
+        this.logs.push(line);
+        if (this.logs.length > 500)
+            this.logs.shift();
+    }
+    async downloadLogFile() {
+        const blob = new Blob([this.logs.join('\n')], { type: 'text/plain' });
+        const objUrl = URL.createObjectURL(blob);
+        await browser.downloads.download({
+            url: objUrl,
+            filename: `vault_central_debug_${Date.now()}.log`
+        });
+        URL.revokeObjectURL(objUrl);
+    }
+}
+const logger = new DebugLogger();
+/**
  * [VaultAuth] Background Extraction Logic
  * ---------------------------------------
  * Performs a background extraction of video sources from a target URL.
@@ -9,10 +49,11 @@ import { STORAGE_KEYS } from '../../src/lib/constants';
  * Compatible with Chrome and Firefox via webextension-polyfill.
  */
 async function doTabExtraction(targetUrl) {
-    console.log("[VaultAuth] Starting extraction for:", targetUrl);
+    logger.log("Starting extraction for:", targetUrl);
     let scraperTabId = undefined;
     let webRequestListener = null;
     let globalTimeoutId = null;
+    let scraperWindowId = undefined;
     return new Promise(async (resolve) => {
         let isResolved = false;
         let latestM3u8 = null;
@@ -22,42 +63,52 @@ async function doTabExtraction(targetUrl) {
             if (isResolved)
                 return;
             isResolved = true;
-            console.log(`[VaultAuth] Cleanup: ${reason}. TabID: ${scraperTabId}`);
+            logger.log(`Cleanup triggered. Reason: ${reason}. TabID: ${scraperTabId}`);
             if (globalTimeoutId)
                 clearTimeout(globalTimeoutId);
             if (webRequestListener && browser.webRequest) {
                 try {
                     browser.webRequest.onBeforeRequest.removeListener(webRequestListener);
+                    logger.log("Removed webRequest listener.");
                 }
                 catch (e) {
-                    console.warn("[VaultAuth] Error removing webRequest listener:", e);
+                    logger.warn("Error removing webRequest listener:", e);
                 }
             }
             if (scraperTabId !== undefined) {
                 try {
                     await browser.tabs.remove(scraperTabId);
+                    logger.log("Removed tracking tab.");
                 }
                 catch (e) {
                     /* ignore if already closed */
-                    console.debug("[VaultAuth] Tab already closed or error:", e);
+                    logger.log("Tab already closed or error inside cleanup:", e);
                 }
             }
             resolve(result);
         };
         try {
+            logger.log("Creating inactive background tab for scraping...");
             // Create a background tab (not active)
             const scraperTab = await browser.tabs.create({ url: targetUrl, active: false });
             scraperTabId = scraperTab.id;
+            scraperWindowId = scraperTab.windowId;
+            logger.log(`Scraper Tab Created: ID=${scraperTabId}, WindowID=${scraperWindowId}`);
             // Global safety timeout
             globalTimeoutId = setTimeout(() => {
-                cleanup(latestM3u8 ? { src: latestM3u8, metadata: defaultMetadata } : null, "Global isolation timeout reached (16s)");
+                logger.warn("Global isolation timeout reached (16s)");
+                cleanup(latestM3u8 ? { src: latestM3u8, metadata: defaultMetadata } : null, "Timeout reached");
             }, 16000);
             // 1. Network intercept for .m3u8 and .ts (HLS/TS streams)
             if (browser.webRequest) {
+                logger.log("Adding webRequest listener for stream interception...");
                 webRequestListener = (details) => {
                     const lowercaseUrl = details.url.toLowerCase();
+                    if (details.tabId === scraperTabId) {
+                        logger.log(`Network request intercepted locally in tab ${scraperTabId}:`, details.url);
+                    }
                     if (details.tabId === scraperTabId && (lowercaseUrl.includes('.m3u8') || lowercaseUrl.includes('.ts'))) {
-                        console.log("[VaultAuth] Intercepted stream:", details.url);
+                        logger.log("Successfully intercepted stream:", details.url);
                         latestM3u8 = details.url;
                         // We don't resolve immediately; keep listening until script injection or timeout
                     }
@@ -67,6 +118,7 @@ async function doTabExtraction(targetUrl) {
             // 2. DOM Extraction via Script Injection
             const tabUpdateListener = (tabId, info) => {
                 if (tabId === scraperTabId && info.status === 'complete') {
+                    logger.log(`scraperTab ${tabId} update status: complete. Injecting script...`);
                     browser.tabs.onUpdated.removeListener(tabUpdateListener);
                     injectScript();
                 }
@@ -77,11 +129,34 @@ async function doTabExtraction(targetUrl) {
                     return;
                 injectionStarted = true;
                 try {
+                    logger.log("Executing script in scraperTab to find video/metadata...");
                     const results = await browser.scripting.executeScript({
                         target: { tabId: scraperTabId },
                         func: async () => {
                             const delay = (ms) => new Promise(r => setTimeout(r, ms));
-                            const findBestVideoAndMeta = () => {
+                            const captureVideoFrame = async (video) => {
+                                try {
+                                    if (video.readyState < 2) {
+                                        await new Promise((res) => {
+                                            video.addEventListener('loadeddata', res, { once: true });
+                                            setTimeout(res, 1000);
+                                        });
+                                    }
+                                    const canvas = document.createElement('canvas');
+                                    canvas.width = video.videoWidth || 640;
+                                    canvas.height = video.videoHeight || 360;
+                                    const ctx = canvas.getContext('2d');
+                                    if (ctx) {
+                                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                        return canvas.toDataURL('image/jpeg', 0.5);
+                                    }
+                                }
+                                catch (e) {
+                                    return null;
+                                }
+                                return null;
+                            };
+                            const findBestVideoAndMeta = async () => {
                                 const metadata = { title: document.title, thumbnail: "", duration: 0, author: "", views: "", tags: [], likes: "", date: "" };
                                 const ogTitle = document.querySelector('meta[property="og:title"]');
                                 if (ogTitle)
@@ -121,6 +196,7 @@ async function doTabExtraction(targetUrl) {
                                 const videos = Array.from(document.querySelectorAll('video'));
                                 let bestSrc = null;
                                 let maxScore = -1;
+                                let bestVideoEl = null;
                                 for (const v of videos) {
                                     const rect = v.getBoundingClientRect();
                                     let score = rect.width * rect.height;
@@ -132,6 +208,7 @@ async function doTabExtraction(targetUrl) {
                                         if (score > maxScore) {
                                             maxScore = score;
                                             bestSrc = v.src;
+                                            bestVideoEl = v;
                                             if (!isNaN(v.duration))
                                                 metadata.duration = v.duration;
                                         }
@@ -143,6 +220,7 @@ async function doTabExtraction(targetUrl) {
                                                 if (score > maxScore) {
                                                     maxScore = score;
                                                     bestSrc = s.src;
+                                                    bestVideoEl = v;
                                                     if (!isNaN(v.duration))
                                                         metadata.duration = v.duration;
                                                 }
@@ -160,18 +238,40 @@ async function doTabExtraction(targetUrl) {
                                         }
                                     }
                                 }
+                                // Actually attempt to grab the video frame directly internally as thumbnail
+                                if (bestVideoEl) {
+                                    const frame = await captureVideoFrame(bestVideoEl);
+                                    if (frame)
+                                        metadata.thumbnail = frame;
+                                }
                                 return { src: bestSrc, metadata };
                             };
-                            let result = findBestVideoAndMeta();
-                            if (!result.src) {
+                            let result = await findBestVideoAndMeta();
+                            if (!result.src && !result.metadata.thumbnail) {
                                 // Wait for potential async video initialization inside the page
                                 await delay(2500);
-                                result = findBestVideoAndMeta();
+                                result = await findBestVideoAndMeta();
                             }
                             return result;
                         }
                     });
                     const foundResult = results[0]?.result;
+                    logger.log("Script inject result resolved.", foundResult);
+                    if (!foundResult?.metadata?.thumbnail && scraperWindowId !== undefined) {
+                        logger.log("Thumbnail not generated via script, attempting to briefly activate tab for capture...");
+                        try {
+                            await browser.tabs.update(scraperTabId, { active: true });
+                            await new Promise(r => setTimeout(r, 800)); // allow paint
+                            const snap = await browser.tabs.captureVisibleTab(scraperWindowId, { format: "jpeg", quality: 30 });
+                            if (snap && foundResult) {
+                                foundResult.metadata.thumbnail = snap;
+                                logger.log("Successfully captured active scraper tab screenshot.");
+                            }
+                        }
+                        catch (captureErr) {
+                            logger.error("Failed to capture scraper tab after activation:", captureErr);
+                        }
+                    }
                     if (foundResult?.src) {
                         cleanup(foundResult, "Script injection success");
                     }
@@ -180,21 +280,26 @@ async function doTabExtraction(targetUrl) {
                         cleanup({ src: latestM3u8, metadata: defaultMetadata }, "Fallback to intercepted network m3u8");
                     }
                     else {
+                        logger.log("Nothing found, delaying 2s to catch network stragglers...");
                         // In case nothing was found, delay a tiny bit more for network intercept to catch stragglers
                         setTimeout(() => {
                             if (latestM3u8) {
                                 cleanup({ src: latestM3u8, metadata: defaultMetadata }, "Late intercepted network m3u8");
                             }
+                            else {
+                                cleanup(foundResult || null, "No m3u8 or injection success after timeout");
+                            }
                         }, 2000);
                     }
                 }
                 catch (e) {
-                    console.error("[VaultAuth] Injection error:", e);
+                    logger.error("Injection error:", e);
+                    cleanup(null, "Injection threw an error");
                 }
             };
         }
         catch (e) {
-            console.error("[VaultAuth] Tab isolation failed:", e);
+            logger.error("Tab isolation setup failed:", e);
             cleanup(null, "Internal isolation error");
         }
     });
@@ -244,6 +349,16 @@ async function runCapturePipeline(data, tabId, windowId) {
     try {
         const targetUrl = data.url;
         let finalSrc = data.url;
+        // Fallback Thumbnail: Try to grab a screenshot immediately before user navigates away
+        if (!data.thumbnail && windowId) {
+            try {
+                const dataUrl = await browser.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 20 });
+                data.thumbnail = dataUrl;
+            }
+            catch (captureErr) {
+                console.warn("[VaultAuth] Failed to capture visible tab for thumbnail", captureErr);
+            }
+        }
         // Perform deep extraction to get better metadata and resolve potential HTML containers
         const extracted = await doTabExtraction(targetUrl);
         if (extracted && extracted.src) {
@@ -268,16 +383,6 @@ async function runCapturePipeline(data, tabId, windowId) {
             }
         }
         data.rawVideoSrc = finalSrc;
-        // Fallback Thumbnail: Try to grab a screenshot if needed
-        if (!data.thumbnail && tabId && windowId) {
-            try {
-                const dataUrl = await browser.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 20 });
-                data.thumbnail = dataUrl;
-            }
-            catch (captureErr) {
-                console.warn("[VaultAuth] Failed to capture visible tab for thumbnail", captureErr);
-            }
-        }
         const saved = await getSavedVideos(true);
         // Check if item already exists based on URL to prevent duplicates
         if (saved.some(v => v.url === data.url)) {
@@ -310,15 +415,37 @@ async function runCapturePipeline(data, tabId, windowId) {
  * Offscreen Management
  */
 async function setupOffscreenDocument() {
-    console.log("[VaultAuth] Ensuring offscreen document for preview generation...");
+    logger.log("Ensuring offscreen document for preview generation...");
     const offscreenUrl = 'src/offscreen/processor.html';
-    // Check if it's already there
+    // Check if browser.offscreen is supported (Firefox doesn't support it yet)
+    if (!browser.offscreen) {
+        logger.log("browser.offscreen is missing, attempting Firefox iframe fallback...");
+        if (typeof document !== 'undefined' && document.body) {
+            let frame = document.getElementById('vault-processor-frame');
+            if (!frame) {
+                frame = document.createElement('iframe');
+                frame.id = 'vault-processor-frame';
+                frame.src = browser.runtime.getURL(offscreenUrl);
+                document.body.appendChild(frame);
+                await new Promise((resolve) => {
+                    frame.onload = resolve;
+                });
+                logger.log("Successfully injected iframe for processor in Firefox background page.");
+            }
+            return;
+        }
+        else {
+            logger.warn("browser.offscreen missing and no DOM (document.body) available for iframe fallback.");
+            return;
+        }
+    }
+    // Check if it's already there (for Chrome)
     try {
         const contexts = await browser.runtime.getContexts({
             contextTypes: ['OFFSCREEN_DOCUMENT'],
             documentUrls: [browser.runtime.getURL(offscreenUrl)]
         });
-        if (contexts.length > 0)
+        if (contexts && contexts.length > 0)
             return;
     }
     catch (e) {
@@ -330,9 +457,10 @@ async function setupOffscreenDocument() {
             reasons: ['DOM_PARSER', 'AUDIO_PLAYBACK', 'BLOBS'],
             justification: 'FFmpeg WASM processing for video previews'
         });
+        logger.log("Created offscreen document (Chrome).");
     }
     catch (e) {
-        console.error("[VaultAuth] Failed to create offscreen document", e);
+        logger.error("Failed to create offscreen document", e);
     }
 }
 /**
@@ -340,20 +468,42 @@ async function setupOffscreenDocument() {
  */
 browser.runtime.onMessage.addListener((request, sender) => {
     if (request.action === "extract_fresh_m3u8") {
-        return doTabExtraction(request.url).then(res => ({ src: res?.src || null }));
+        return new Promise((resolve, reject) => {
+            doTabExtraction(request.url)
+                .then(res => resolve({ src: res?.src || null }))
+                .catch(err => {
+                logger.error("extract_fresh_m3u8 error:", err);
+                resolve({ src: null });
+            });
+        });
     }
     if (request.action === "open_dashboard") {
         openDashboard();
-        return true;
+        return Promise.resolve(true);
     }
     if (request.action === "process_capture") {
-        return runCapturePipeline(request.data, sender?.tab?.id, sender?.tab?.windowId);
+        return new Promise((resolve) => {
+            runCapturePipeline(request.data, sender?.tab?.id, sender?.tab?.windowId)
+                .then(resolve)
+                .catch(err => resolve({ success: false, message: String(err) }));
+        });
     }
     if (request.action === "generate_preview") {
-        setupOffscreenDocument().then(() => {
-            browser.runtime.sendMessage(request);
+        return new Promise((resolve) => {
+            setupOffscreenDocument().then(() => {
+                browser.runtime.sendMessage(request).catch(e => {
+                    logger.warn("Sub-message for generate_preview failed, likely because no listener attached in time:", e);
+                });
+                resolve(true);
+            }).catch(e => {
+                logger.error("setupOffscreenDocument failed", e);
+                resolve(false);
+            });
         });
-        return true;
+    }
+    if (request.action === "download_debug_logs") {
+        logger.downloadLogFile();
+        return Promise.resolve(true);
     }
     return false;
 });
