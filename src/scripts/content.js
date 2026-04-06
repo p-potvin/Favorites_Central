@@ -301,48 +301,147 @@ function extractSurroundingMetadata(baseEl, existingTitle) {
     }
     return meta;
 }
+const VIDEO_EXTS_RE = /\.(mp4|webm|mkv|m3u8|ts|mov|avi|flv|ogv)(\?.*)?$/i;
+const MEDIA_EXTS_RE = /\.(jpg|jpeg|png|gif|webp|mp3|wav|flac|ogg|torrent)(\?.*)?$/i;
+/**
+ * Scores a URL by how likely it is to be a useful video/media source.
+ * Higher is better. Returns 0 for empty/data: URLs.
+ */
+function scoreUrl(url) {
+    if (!url || url.startsWith('data:') || url.startsWith('javascript:') || url === '#')
+        return 0;
+    const lower = url.toLowerCase();
+    if (VIDEO_EXTS_RE.test(lower))
+        return 100;
+    if (lower.includes('.m3u8') || lower.includes('manifest'))
+        return 90;
+    if (lower.includes('video') || lower.includes('stream') || lower.includes('/media/'))
+        return 60;
+    if (lower.match(MEDIA_EXTS_RE))
+        return 30;
+    if (lower.startsWith('http') || lower.startsWith('/'))
+        return 20;
+    return 5;
+}
+/**
+ * Reads the best URL out of a single DOM element by checking href, src and then
+ * any attribute whose value looks like an absolute or relative URL.
+ */
+function getElementUrl(el) {
+    const href = el.getAttribute('href');
+    const src = el.getAttribute('src');
+    if (href && href !== '#' && !href.startsWith('javascript:'))
+        return href;
+    if (src && !src.startsWith('data:'))
+        return src;
+    // Custom attributes: absolute https:// URL or relative path with multiple segments
+    for (const attr of Array.from(el.attributes)) {
+        const val = attr.value;
+        if ((val.startsWith('https://') || val.startsWith('http://')) && val.length > 10)
+            return val;
+        if (val.startsWith('/') && val.split('/').length >= 3)
+            return val;
+    }
+    return null;
+}
+/**
+ * Searches for the best media/video link using this priority order:
+ *   1. The element itself
+ *   2. The immediate parent
+ *   3. Children of the original element
+ *   4. Further parents (up the ancestor chain)
+ *   5. Immediate siblings
+ *
+ * Candidates are scored and the highest score wins.
+ *
+ * Score components:
+ *   <video> element               tag bonus +200
+ *   <source> element              tag bonus +150
+ *   URL with video file extension url score +100
+ *   URL with streaming manifest   url score +90
+ *   <a> tag                       tag bonus 0 (neutral)
+ *   <img> tag                     tag bonus –30
+ *   other element                 tag bonus –50
+ */
+function findBestLink(baseEl) {
+    const candidates = [];
+    function addCandidate(el, baseScore) {
+        const tag = el.tagName.toLowerCase();
+        const tagBonus = { video: 200, source: 150, a: 0, img: -30, audio: -20 };
+        const bonus = tagBonus[tag] ?? -50;
+        let url = null;
+        if (tag === 'video') {
+            const v = el;
+            url = (v.currentSrc && !v.currentSrc.startsWith('blob:') ? v.currentSrc : null)
+                || (v.src && !v.src.startsWith('blob:') ? v.src : null)
+                || getElementUrl(el);
+        }
+        else if (tag === 'source') {
+            const s = el;
+            url = (s.src && !s.src.startsWith('blob:') ? s.src : null) || getElementUrl(el);
+        }
+        else {
+            url = getElementUrl(el);
+        }
+        if (!url)
+            return;
+        // Resolve protocol-relative and absolute paths
+        if (url.startsWith('//'))
+            url = window.location.protocol + url;
+        if (url.startsWith('/'))
+            url = window.location.origin + url;
+        const score = baseScore + bonus + scoreUrl(url);
+        if (score > 0)
+            candidates.push({ url, score, el });
+    }
+    // 1. The element itself (highest priority)
+    addCandidate(baseEl, 100);
+    // 2. Immediate parent
+    const immediateParent = baseEl.parentElement;
+    if (immediateParent && immediateParent !== document.body) {
+        addCandidate(immediateParent, 80);
+    }
+    // 3. Children of the original element
+    baseEl.querySelectorAll('a, video, source, [href], [src]').forEach(child => addCandidate(child, 60));
+    // 4. Further parents (ancestor chain, skipping the immediate parent already added)
+    let ancestor = immediateParent?.parentElement ?? null;
+    let ancestorScore = 50;
+    for (let depth = 0; depth < 5 && ancestor && ancestor !== document.body; depth++) {
+        addCandidate(ancestor, ancestorScore);
+        ancestor = ancestor.parentElement;
+        ancestorScore -= 5;
+    }
+    // 5. Immediate siblings (direct children of the immediate parent that are not the base element)
+    if (immediateParent) {
+        Array.from(immediateParent.children).forEach(sibling => {
+            if (sibling !== baseEl) {
+                addCandidate(sibling, 30);
+                sibling.querySelectorAll('a, video, source').forEach(child => addCandidate(child, 25));
+            }
+        });
+    }
+    if (candidates.length === 0)
+        return null;
+    candidates.sort((a, b) => b.score - a.score);
+    return { url: candidates[0].url, el: candidates[0].el };
+}
 /**
  * Reliable Data Extraction (Runtime Validated)
  */
 function attemptExtraction(el) {
-    // Priority 1: Direct link hover
-    let link = el?.closest("a");
-    // Priority 2: Bresenham-lite search for nearby links if not on one
-    if (!link && el) {
-        const rect = el.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        // Scan a small 40px radius around the element center for anchors
-        const points = [
-            [0, 0], [15, 0], [-15, 0], [0, 15], [0, -15],
-            [30, 0], [-30, 0], [0, 30], [0, -30]
-        ];
-        for (const [ox, oy] of points) {
-            const potential = document.elementFromPoint(centerX + ox, centerY + oy);
-            const foundLink = potential?.closest("a");
-            if (foundLink) {
-                link = foundLink;
-                break;
-            }
-        }
-    }
-    let url = link?.href;
-    if (!url && el && el.src) {
-        url = el.src;
-    }
-    if (!url) {
-        url = window.location.href;
-    }
+    const best = el ? findBestLink(el) : null;
+    let url = best?.url || window.location.href;
     let title = "Untitled Media";
     if (el) {
         title = el.getAttribute("title") || el.getAttribute("aria-label") || el.getAttribute("alt") || "";
     }
-    if (!title && link) {
-        title = link.getAttribute("title") || link.getAttribute("aria-label") || "";
+    if (!title && best?.el) {
+        title = best.el.getAttribute?.("title")
+            || best.el.getAttribute?.("aria-label")
+            || "";
     }
-    if (!title) {
+    if (!title)
         title = document.title;
-    }
     let extraMeta = { author: "", views: "", likes: "", date: "", tags: [], actors: [] };
     if (el) {
         const enriched = extractSurroundingMetadata(el, title);
@@ -355,9 +454,9 @@ function attemptExtraction(el) {
         extraMeta.actors = enriched.actors;
     }
     let type = 'link';
-    if (el) {
-        const tag = el.tagName.toLowerCase();
-        if (tag === 'video')
+    if (best?.el) {
+        const tag = best.el.tagName.toLowerCase();
+        if (tag === 'video' || tag === 'source')
             type = 'video';
         else if (tag === 'img')
             type = 'image';
@@ -365,21 +464,21 @@ function attemptExtraction(el) {
             type = 'audio';
     }
     if (type === 'link') {
-        const urlWithoutQuery = url.split('?')[0];
-        if (urlWithoutQuery.match(/\.(mp4|webm|mkv|m3u8|ts)$/i))
+        const bare = url.split('?')[0];
+        if (bare.match(/\.(mp4|webm|mkv|m3u8|ts|mov|flv|ogv)$/i))
             type = 'video';
-        else if (urlWithoutQuery.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+        else if (bare.match(/\.(jpg|jpeg|png|gif|webp)$/i))
             type = 'image';
-        else if (urlWithoutQuery.match(/\.(mp3|wav|flac|ogg)$/i))
+        else if (bare.match(/\.(mp3|wav|flac|ogg)$/i))
             type = 'audio';
-        else if (urlWithoutQuery.match(/\.torrent$/i) || url.startsWith('magnet:'))
+        else if (bare.match(/\.torrent$/i) || url.startsWith('magnet:'))
             type = 'torrent';
     }
     const rawData = {
         title: title.trim().substring(0, 100),
-        url: url,
+        url,
         domain: window.location.hostname.replace('www.', ''),
-        type: type,
+        type,
         thumbnail: "",
         timestamp: Date.now(),
         ...extraMeta

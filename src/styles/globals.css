@@ -125,6 +125,13 @@
   transform: translateY(-2px);
 }
 
+/* Vault button base styles */
 .vault-btn {
   @apply px-4 py-2 rounded-md border border-vault-border bg-transparent text-vault-text hover:text-vault-bg hover:bg-vault-accent transition-all uppercase tracking-wide text-xs font-semibold;
+}
+
+/* Ensure Lucide SVG icons display correctly inside buttons */
+.vault-btn svg {
+  display: inline-block !important;
+  vertical-align: middle;
 }

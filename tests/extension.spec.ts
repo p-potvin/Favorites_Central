@@ -17,7 +17,7 @@ test.describe('Favorites Central Extension Tests', () => {
     
     // Based on Dashboard.tsx, let's look for the main layout container
     // Note: The UI now shows "Favorites Central" as the branding
-    await expect(dashboardPage.locator('h1')).toContainText('FavoritesCentral');
+    await expect(dashboardPage.locator('h1')).toContainText('VaultCentral');
     
     // Check if the search input exists
     const searchInput = dashboardPage.locator('input[placeholder*="Search"]');

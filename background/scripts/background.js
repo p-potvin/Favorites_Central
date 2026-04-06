@@ -41,6 +41,7 @@ class DebugLogger {
     }
 }
 const logger = new DebugLogger();
+const DIRECT_VIDEO_EXTS = /\.(mp4|webm|mkv|mov|avi|flv|ogv|ogg|m3u8|ts)(\?.*)?$/i;
 /**
  * [VaultAuth] Background Extraction Logic
  * ---------------------------------------
@@ -50,6 +51,16 @@ const logger = new DebugLogger();
  */
 async function doTabExtraction(targetUrl) {
     logger.log("Starting extraction for:", targetUrl);
+    // Fast path: if the URL is already a direct video/media file, return it immediately
+    // without opening a new tab — nothing to extract from an HTML page.
+    const bare = targetUrl.split('?')[0];
+    if (DIRECT_VIDEO_EXTS.test(bare)) {
+        logger.log("Direct video URL detected — skipping tab extraction:", targetUrl);
+        return {
+            src: targetUrl,
+            metadata: { title: "", thumbnail: "", duration: 0, author: "", views: "", tags: [], likes: "", date: "" }
+        };
+    }
     let scraperTabId = undefined;
     let webRequestListener = null;
     let globalTimeoutId = null;
@@ -96,21 +107,27 @@ async function doTabExtraction(targetUrl) {
             logger.log(`Scraper Tab Created: ID=${scraperTabId}, WindowID=${scraperWindowId}`);
             // Global safety timeout
             globalTimeoutId = setTimeout(() => {
-                logger.warn("Global isolation timeout reached (16s)");
+                logger.warn("Global isolation timeout reached (25s)");
                 cleanup(latestM3u8 ? { src: latestM3u8, metadata: defaultMetadata } : null, "Timeout reached");
-            }, 16000);
-            // 1. Network intercept for .m3u8 and .ts (HLS/TS streams)
+            }, 25000);
+            // 1. Network intercept for streaming and direct video requests
             if (browser.webRequest) {
                 logger.log("Adding webRequest listener for stream interception...");
                 webRequestListener = (details) => {
                     const lowercaseUrl = details.url.toLowerCase();
                     if (details.tabId === scraperTabId) {
-                        logger.log(`Network request intercepted locally in tab ${scraperTabId}:`, details.url);
+                        logger.log(`Network request intercepted in tab ${scraperTabId}:`, details.url);
                     }
-                    if (details.tabId === scraperTabId && (lowercaseUrl.includes('.m3u8') || lowercaseUrl.includes('.ts'))) {
-                        logger.log("Successfully intercepted stream:", details.url);
-                        latestM3u8 = details.url;
-                        // We don't resolve immediately; keep listening until script injection or timeout
+                    if (details.tabId === scraperTabId) {
+                        const isStream = lowercaseUrl.includes('.m3u8') || lowercaseUrl.includes('manifest');
+                        const isDirectVideo = /\.(mp4|webm|flv|mkv|mov|ts)(\?|$)/.test(lowercaseUrl);
+                        if (isStream || isDirectVideo) {
+                            logger.log("Successfully intercepted media request:", details.url);
+                            // Prefer streaming manifests over direct files for better compatibility
+                            if (!latestM3u8 || isStream) {
+                                latestM3u8 = details.url;
+                            }
+                        }
                     }
                 };
                 browser.webRequest.onBeforeRequest.addListener(webRequestListener, { urls: ["<all_urls>"], tabId: scraperTabId });
@@ -136,10 +153,15 @@ async function doTabExtraction(targetUrl) {
                             const delay = (ms) => new Promise(r => setTimeout(r, ms));
                             const captureVideoFrame = async (video) => {
                                 try {
+                                    // Ensure it's playing or at least seeked slightly to have video content
+                                    if (video.currentTime === 0) {
+                                        video.currentTime = 5; // seek slightly into the video
+                                        await new Promise(r => setTimeout(r, 800));
+                                    }
                                     if (video.readyState < 2) {
                                         await new Promise((res) => {
                                             video.addEventListener('loadeddata', res, { once: true });
-                                            setTimeout(res, 1000);
+                                            setTimeout(res, 2000);
                                         });
                                     }
                                     const canvas = document.createElement('canvas');
@@ -155,6 +177,33 @@ async function doTabExtraction(targetUrl) {
                                     return null;
                                 }
                                 return null;
+                            };
+                            const clickAllPlayers = async () => {
+                                const selectors = [
+                                    'video', 'iframe', 'button[aria-label*="Play"]',
+                                    'button[title*="Play"]', '.vjs-big-play-button',
+                                    '.ytp-large-play-button', '.jw-display-icon-container',
+                                    '[class*="play"]', '[id*="play"]', '[role="button"]'
+                                ];
+                                for (const selector of selectors) {
+                                    try {
+                                        const elements = document.querySelectorAll(selector);
+                                        for (const el of Array.from(elements)) {
+                                            const rect = el.getBoundingClientRect();
+                                            if (rect.width > 0 && rect.height > 0) {
+                                                if (el instanceof HTMLVideoElement) {
+                                                    el.play().catch(() => { });
+                                                }
+                                                else {
+                                                    el.click();
+                                                }
+                                                // Small delay between clicks to prevent browser from blocking or site from lagging
+                                                await delay(200);
+                                            }
+                                        }
+                                    }
+                                    catch (e) { }
+                                }
                             };
                             const findBestVideoAndMeta = async () => {
                                 const metadata = { title: document.title, thumbnail: "", duration: 0, author: "", views: "", tags: [], likes: "", date: "" };
@@ -247,9 +296,39 @@ async function doTabExtraction(targetUrl) {
                                 return { src: bestSrc, metadata };
                             };
                             let result = await findBestVideoAndMeta();
-                            if (!result.src && !result.metadata.thumbnail) {
-                                // Wait for potential async video initialization inside the page
+                            if (!result.src) {
+                                // Wait 2.5 s for async video initialisation, then trigger play
+                                // so lazy-loaded players (YouTube-style, blob sources) emit
+                                // network requests that the background webRequest listener can intercept.
                                 await delay(2500);
+                                const allVideos = Array.from(document.querySelectorAll('video'));
+                                if (allVideos.length > 0) {
+                                    let mainPlayer = null;
+                                    let maxScore = -1;
+                                    for (const v of allVideos) {
+                                        const rect = v.getBoundingClientRect();
+                                        let score = rect.width * rect.height;
+                                        const idClass = (v.id + ' ' + v.className).toLowerCase();
+                                        if (idClass.match(/media-player|player|main|primary|hero|video-js|vjs|jwplayer/)) {
+                                            score += 1000000;
+                                        }
+                                        if (score > maxScore) {
+                                            maxScore = score;
+                                            mainPlayer = v;
+                                        }
+                                    }
+                                    if (mainPlayer) {
+                                        try {
+                                            mainPlayer.muted = true;
+                                            mainPlayer.currentTime = 0.1;
+                                            await mainPlayer.play();
+                                        }
+                                        catch (_e) { /* autoplay may be blocked — ignore */ }
+                                    }
+                                }
+                                logger.log("Passive scan failed, attempting aggressive clicks...");
+                                await clickAllPlayers();
+                                await delay(3000);
                                 result = await findBestVideoAndMeta();
                             }
                             return result;
@@ -272,22 +351,26 @@ async function doTabExtraction(targetUrl) {
                             logger.error("Failed to capture scraper tab after activation:", captureErr);
                         }
                     }
-                    if (foundResult?.src) {
+                    // Prefer an intercepted streaming manifest/direct-video URL over a DOM-extracted
+                    // blob or opaque src, but keep the richer metadata from the DOM extraction.
+                    if (latestM3u8 && foundResult) {
+                        foundResult.src = latestM3u8;
+                        cleanup(foundResult, "Script injection success with intercepted network src");
+                    }
+                    else if (foundResult?.src) {
                         cleanup(foundResult, "Script injection success");
                     }
                     else if (latestM3u8) {
-                        // Fallback to intercepted m3u8 if DOM extraction completely failed
-                        cleanup({ src: latestM3u8, metadata: defaultMetadata }, "Fallback to intercepted network m3u8");
+                        cleanup({ src: latestM3u8, metadata: foundResult?.metadata ?? defaultMetadata }, "Fallback to intercepted network media");
                     }
                     else {
-                        logger.log("Nothing found, delaying 2s to catch network stragglers...");
-                        // In case nothing was found, delay a tiny bit more for network intercept to catch stragglers
+                        logger.log("Nothing found yet — waiting 2 s for network stragglers...");
                         setTimeout(() => {
                             if (latestM3u8) {
-                                cleanup({ src: latestM3u8, metadata: defaultMetadata }, "Late intercepted network m3u8");
+                                cleanup({ src: latestM3u8, metadata: foundResult?.metadata ?? defaultMetadata }, "Late intercepted network media");
                             }
                             else {
-                                cleanup(foundResult || null, "No m3u8 or injection success after timeout");
+                                cleanup(foundResult ?? null, "No media or injection success after timeout");
                             }
                         }, 2000);
                     }
@@ -313,16 +396,29 @@ async function openDashboard() {
     // Check for existing dashboard by stored ID or URL fallback
     const { [STORAGE_KEYS.ACTIVE_TAB_ID]: storedTabId } = await browser.storage.local.get(STORAGE_KEYS.ACTIVE_TAB_ID);
     let dashboardTab;
+    // Helper: returns true if tab is a valid dashboard tab
+    function isValidDashboardTab(tab) {
+        if (!tab || !tab.url)
+            return false;
+        // Ignore extension management/debugging pages
+        if (tab.url.startsWith('about:debugging') || tab.url.startsWith('about:addons') || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://'))
+            return false;
+        // Only match dashboard-v2.html
+        return tab.url.startsWith(url);
+    }
     if (storedTabId && typeof storedTabId === 'number') {
         try {
-            dashboardTab = await browser.tabs.get(storedTabId);
+            const candidateTab = await browser.tabs.get(storedTabId);
+            if (isValidDashboardTab(candidateTab)) {
+                dashboardTab = candidateTab;
+            }
         }
         catch (e) {
             // Tab likely closed
         }
     }
     if (!dashboardTab) {
-        dashboardTab = tabs.find(t => t.url && t.url.startsWith(url));
+        dashboardTab = tabs.find(isValidDashboardTab);
     }
     if (dashboardTab && dashboardTab.id) {
         // If already open, focus it

@@ -1,0 +1,7 @@
+/*
+ * Fix Lucide icons not appearing inside buttons by ensuring display: inline-block for all SVGs in .vault-btn
+ */
+.vault-btn svg {
+  display: inline-block !important;
+  vertical-align: middle;
+}
