@@ -1,4 +1,5 @@
 import browser from 'webextension-polyfill';
+
 import { getPinSettings, getSavedVideos, savePinSettings, saveVideos } from '../lib/storage-vault';
 import { getPreview } from '../lib/dexie-store';
 import { VAULT_THEMES, getThemeClass } from '../lib/themes'; // Added for binary previews
@@ -50,7 +51,7 @@ const PreviewThumb: React.FC<{ video: VideoData }> = ({ video }) => {
     const elapsed = now - video.timestamp;
     
     if (elapsed > 30000 && !isProcessing) {
-      console.log(`[VaultAuth] Preview missing after ${elapsed}ms. Retriggering for:`, video.title);
+      // ...existing code...
       setIsProcessing(true);
       try {
         const response: any = await browser.runtime.sendMessage({
@@ -79,7 +80,7 @@ const PreviewThumb: React.FC<{ video: VideoData }> = ({ video }) => {
             return;
         }
       } catch (e) {
-        console.error("[VaultAuth] Manual retrigger failed:", e);
+        // ...existing code...
       } finally {
         setIsProcessing(false);
       }
@@ -115,7 +116,7 @@ const PreviewThumb: React.FC<{ video: VideoData }> = ({ video }) => {
       
       {isProcessing ? (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <Icons.Loader2 className="text-vault-accent animate-spin" size={20} />
+          <Icons.LoaderIcon className="text-vault-accent animate-spin" size={20} />
         </div>
       ) : (
         !previewBlob && isHovering && (
@@ -165,7 +166,7 @@ export const VaultDashboard: React.FC = () => {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error("Export failed", err);
+      // ...existing code...
     }
   };
 
@@ -182,7 +183,7 @@ export const VaultDashboard: React.FC = () => {
           setToastMessage({msg: "Backup successfully imported!", type: "success"});
         }
       } catch (err) {
-        console.error("Import failed", err);
+        // ...existing code...
         setToastMessage({msg: "Failed to import. Invalid JSON backup.", type: "error"});
       }
     };
@@ -501,7 +502,8 @@ export const VaultDashboard: React.FC = () => {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
             <div className="text-vault-accent">
-              <Icons.Shield size={24} strokeWidth={2.5} />
+              {/* ...existing code... */}
+              <Icons.ViewModeIcon size={24} strokeWidth={2.5} />
             </div>
             <div className="leading-tight">
               <h1 className="text-xl font-bold tracking-tight flex items-center gap-1">
@@ -531,7 +533,7 @@ export const VaultDashboard: React.FC = () => {
               <option value="tags">Tags</option>
             </select>
             <div className="relative flex-1">
-              <Icons.Search className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted group-focus-within:text-vault-accent transition-colors" size={16} />
+              <Icons.SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted group-focus-within:text-vault-accent transition-colors" size={16} />
               <input 
                 type="text"
                 placeholder={`Search in ${searchField}...`}
@@ -542,8 +544,11 @@ export const VaultDashboard: React.FC = () => {
             </div>
           </div>
 
-          <button onClick={() => setIsSettingsOpen(true)} className="vault-btn flex items-center justify-center p-1.5 rounded-full h-8 w-8 group" title="Advanced Options & Export">
-            <Icons.Settings size={16} className="text-vault-accent group-hover:rotate-90 transition-transform duration-300" />
+          <button onClick={() => setIsSettingsOpen(true)} className="vault-btn flex items-center justify-center p-1.5 rounded-full h-8 w-8 group" title="Vault Settings">
+            <Icons.SettingsIcon size={16} className="text-vault-accent group-hover:rotate-90 transition-transform duration-300" />
+          </button>
+          <button onClick={cycleTheme} className="vault-btn flex items-center justify-center p-1.5 rounded-full h-8 w-8 group" title="Cycle Theme">
+            <Icons.ThemeIcon size={16} className="text-vault-accent group-hover:rotate-90 transition-transform duration-300" />
           </button>
         </div>
       </header>
@@ -564,7 +569,7 @@ export const VaultDashboard: React.FC = () => {
             {/* View Mode */}
             <div>
               <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
-                <Icons.Shield size={14} className="text-vault-accent" /> View Mode
+                <Icons.ViewModeIcon size={14} className="text-vault-accent" /> View Mode
               </label>
               <input 
                 type="range" 
@@ -583,7 +588,7 @@ export const VaultDashboard: React.FC = () => {
             {/* Theme Config */}
             <div>
               <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
-                <Icons.Palette size={14} className="text-vault-accent" /> UI Theme
+                <Icons.ThemeIcon size={14} className="text-vault-accent" /> UI Theme
               </label>
               <select 
                 value={currentTheme}
@@ -598,7 +603,7 @@ export const VaultDashboard: React.FC = () => {
             {/* Grouping */}
             <div>
               <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
-                <Icons.Shield size={14} className="text-vault-accent" /> Group By
+                <Icons.GroupIcon size={14} className="text-vault-accent" /> Group By
               </label>
               <select 
                 value={groupBy}
@@ -613,7 +618,7 @@ export const VaultDashboard: React.FC = () => {
             {/* Sorting */}
             <div className="space-y-2">
                <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
-                <Icons.Shield size={14} className="text-vault-accent" /> Sort Params
+                <Icons.SortIcon size={14} className="text-vault-accent" /> Sort Params
               </label>
               <div className="flex gap-2">
                 <select 
@@ -652,7 +657,7 @@ export const VaultDashboard: React.FC = () => {
             {/* PIN System */}
             <div className="pt-2">
               <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-3">
-                <Icons.Lock size={14} className="text-vault-accent" /> PIN Protection
+                <Icons.PinIcon size={14} className="text-vault-accent" /> PIN Protection
               </label>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -726,7 +731,7 @@ export const VaultDashboard: React.FC = () => {
             {/* Sync Option */}
             <div className="pt-2">
               <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
-                <Icons.Shield size={14} className="text-vault-accent" /> Persistence
+                <Icons.DebugIcon size={14} className="text-vault-accent" /> Persistence
               </label>
               <button
                 onClick={() => setIsSyncing(!isSyncing)}
@@ -781,7 +786,7 @@ export const VaultDashboard: React.FC = () => {
                   onClick={() => setIsolatedGroup(null)}
                   className="vault-btn flex items-center gap-2"
                 >
-                  <Icons.ArrowLeft size={16} /> Back to Dashboard
+                  <Icons.BackIcon size={16} /> Back to Dashboard
                 </button>
               </div>
             )}
@@ -826,7 +831,7 @@ export const VaultDashboard: React.FC = () => {
                           disabled={currentPage === 0}
                           className="vault-btn p-1 h-7 w-7 flex items-center justify-center disabled:opacity-30"
                         >
-                          <Icons.ChevronLeft size={14} />
+                          <Icons.ChevronLeftIcon size={14} />
                         </button>
                         <span className="text-[10px] font-mono font-bold text-vault-muted w-10 text-center">
                           {currentPage + 1} / {totalPages}
@@ -836,7 +841,7 @@ export const VaultDashboard: React.FC = () => {
                           disabled={currentPage >= totalPages - 1}
                           className="vault-btn p-1 h-7 w-7 flex items-center justify-center disabled:opacity-30"
                         >
-                          <Icons.ChevronRight size={14} />
+                          <Icons.ChevronRightIcon size={14} />
                         </button>
                       </div>
                     )}
@@ -863,13 +868,21 @@ export const VaultDashboard: React.FC = () => {
                             onClick={(e) => {
                               // If clicking an action button inside the thumb, don't trigger play
                               if ((e.target as HTMLElement).closest('.thumb-action')) return;
-                              
+
                               if (fav.type === 'video' && fav.rawVideoSrc) {
                                 setPlayingVideo(fav);
                                 setVideoError(false);
                                 setIsRefreshing(false);
                               } else {
-                                window.open(fav.url, '_blank');
+                                // Test-mode override: suppress popups during automated tests
+                                if (typeof window !== 'undefined' && (window as any).__TEST_MODE__) {
+                                  if ((window as any).__MOCK_WINDOW_OPEN__) {
+                                    (window as any).__MOCK_WINDOW_OPEN__(fav.url);
+                                  }
+                                  // No-op in test mode
+                                } else {
+                                  window.open(fav.url, '_blank');
+                                }
                               }
                             }}
                             className={viewSize === 2 ? "relative w-2/5 flex-none bg-vault-cardBg/50 overflow-hidden cursor-pointer group/thumb rounded-l-lg border-r border-vault-border" : "relative w-full h-[180px] flex-none bg-vault-cardBg/50 overflow-hidden cursor-pointer group/thumb border-b border-vault-border rounded-t-lg"}
@@ -881,7 +894,7 @@ export const VaultDashboard: React.FC = () => {
                                 <img src={fav.thumbnail} alt={fav.title} className="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-105" />
                               ) : (
                                 <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-vault-cardBg to-vault-bg/50">
-                                    <Icons.Shield size={32} className="opacity-10 mb-1" />
+                                    <Icons.DebugIcon size={32} className="opacity-10 mb-1" />
                                     <span className="text-[10px] font-mono opacity-30">NO PREVIEW</span>
                                 </div>
                               )
@@ -898,12 +911,12 @@ export const VaultDashboard: React.FC = () => {
                               <>
                                 <div className="absolute top-2 left-2 z-30 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex flex-col gap-2">
                                   <button onClick={(e) => { e.stopPropagation(); handleEdit(fav); }} className="thumb-action p-1.5 bg-black/60 hover:bg-vault-accent text-white rounded shadow-lg backdrop-blur-md transition-all hover:scale-110" title="Edit Metadata">
-                                    <Icons.FileEdit size={12} />
+                                    <Icons.EditIcon size={12} />
                                   </button>
                                 </div>
                                 <div className="absolute top-2 right-2 z-30 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex flex-col gap-2">
                                   <button onClick={(e) => { e.stopPropagation(); handleDelete(fav.url); }} className="thumb-action p-1.5 bg-black/60 hover:bg-red-500 text-white rounded shadow-lg backdrop-blur-md transition-all hover:scale-110" title="Delete Item">
-                                    <Icons.Trash size={12} />
+                                    <Icons.DeleteIcon size={12} />
                                   </button>
                                 </div>
                               </>
@@ -922,11 +935,11 @@ export const VaultDashboard: React.FC = () => {
                             <div className="absolute inset-0 bg-vault-cardBg/10 group-hover/thumb:bg-vault-cardBg/30 transition-colors flex items-center justify-center z-10">
                               {fav.type === 'video' ? (
                                 <div className="w-12 h-12 rounded-full bg-vault-accent/90 opacity-0 group-hover/thumb:opacity-100 transition-all flex items-center justify-center shadow-2xl transform scale-75 group-hover/thumb:scale-100 duration-300">
-                                  <Icons.PlayCircle fill="currentColor" className="text-vault-bg ml-1" size={20} />
+                                  <Icons.PlayIcon fill="currentColor" className="text-vault-bg ml-1" size={20} />
                                 </div>
                               ) : (
                                 <div className="w-12 h-12 rounded-full bg-vault-cardBg opacity-0 group-hover/thumb:opacity-100 transition-all flex items-center justify-center shadow-xl transform scale-75 group-hover/thumb:scale-100 duration-300 border border-vault-border">
-                                  <Icons.ChevronRight className="text-vault-text" size={20} />
+                                  <Icons.ChevronRightIcon className="text-vault-text" size={20} />
                                 </div>
                               )}
                             </div>
@@ -955,12 +968,12 @@ export const VaultDashboard: React.FC = () => {
                             </div>
                             {viewSize <= 2 && (
                                 <div className="flex gap-1 ml-auto">
-                                    <button onClick={(e) => { e.stopPropagation(); handleEdit(fav); }} className="vault-btn p-1 flex items-center justify-center border-none hover:bg-vault-cardBg" title="Edit">
-                                    <Icons.FileEdit size={14} className="text-vault-muted hover:text-vault-accent" />
-                                    </button>
-                                    <button onClick={(e) => { e.stopPropagation(); handleDelete(fav.url); }} className="vault-btn p-1 flex items-center justify-center border-none hover:bg-vault-cardBg" title="Delete">
-                                    <Icons.Trash size={14} className="text-vault-muted hover:text-red-500" />
-                                    </button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleEdit(fav); }} className="vault-btn p-1 flex items-center justify-center border-none hover:bg-vault-cardBg" title="Edit">
+                                    <Icons.EditIcon size={14} className="text-vault-muted hover:text-vault-accent" />
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDelete(fav.url); }} className="vault-btn p-1 flex items-center justify-center border-none hover:bg-vault-cardBg" title="Delete">
+                                    <Icons.DeleteIcon size={14} className="text-vault-muted hover:text-red-500" />
+                                  </button>
                                 </div>
                             )}
                           </div>
@@ -1023,7 +1036,7 @@ export const VaultDashboard: React.FC = () => {
                               rel="noreferrer"
                               className="text-[10px] font-bold text-vault-bg bg-vault-accent hover:bg-vault-accentHover transition-colors flex items-center gap-1 px-3 py-1.5 rounded-sm"
                             >
-                              OPEN <Icons.ChevronRight size={12} strokeWidth={3} className="group-hover:translate-x-0.5 transition-transform" />
+                              OPEN <Icons.ChevronRightIcon size={12} strokeWidth={3} className="group-hover:translate-x-0.5 transition-transform" />
                             </a>
                           </div>
                         </div>
@@ -1036,7 +1049,7 @@ export const VaultDashboard: React.FC = () => {
 
             {filtered.length === 0 && (
               <div className="py-24 text-center border border-dashed border-vault-border rounded-xl bg-vault-cardBg/30 flex flex-col items-center justify-center">
-                <Icons.Shield size={48} className="text-vault-border mb-4" />
+                <Icons.DebugIcon size={48} className="text-vault-border mb-4" />
                 <p className="text-vault-muted text-sm font-semibold tracking-widest uppercase mb-2">
                   No encrypted items found
                 </p>
@@ -1063,7 +1076,7 @@ export const VaultDashboard: React.FC = () => {
       {confirmDialog && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-vault-cardBg border border-vault-border rounded-lg shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95">
-            <h3 className="text-vault-text font-bold mb-4 flex items-center gap-2"><Icons.AlertCircle size={20} className="text-vault-accent" /> Confirm Action</h3>
+            <h3 className="text-vault-text font-bold mb-4 flex items-center gap-2"><Icons.AlertIcon size={20} className="text-vault-accent" /> Confirm Action</h3>
             <p className="text-vault-muted text-sm">{confirmDialog.message}</p>
             <div className="flex justify-end gap-3 mt-6">
               <button onClick={() => setConfirmDialog(null)} className="px-4 py-1.5 text-xs font-bold text-vault-muted hover:text-vault-text transition-colors">Cancel</button>
@@ -1077,7 +1090,7 @@ export const VaultDashboard: React.FC = () => {
       {promptDialog && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-vault-cardBg border border-vault-border rounded-lg shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95">
-            <h3 className="text-vault-text font-bold mb-4 flex items-center gap-2"><Icons.Shield size={20} className="text-vault-accent" /> Input Required</h3>
+            <h3 className="text-vault-text font-bold mb-4 flex items-center gap-2"><Icons.DebugIcon size={20} className="text-vault-accent" /> Input Required</h3>
             <p className="text-vault-muted text-sm mb-3">{promptDialog.message}</p>
             <input 
               autoFocus
@@ -1102,10 +1115,10 @@ export const VaultDashboard: React.FC = () => {
           <div className="bg-vault-cardBg border border-vault-border rounded-lg shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-vault-border">
               <h2 className="text-lg font-bold text-vault-text flex items-center gap-2">
-                <Icons.FileEdit size={20} className="text-vault-accent" /> Edit Metadata
+                <Icons.EditIcon size={20} className="text-vault-accent" /> Edit Metadata
               </h2>
               <button onClick={() => setEditingItem(null)} className="vault-btn p-1.5 rounded-full hover:bg-vault-bg border-none">
-                <Icons.CircleX size={16} className="text-vault-muted" />
+                <Icons.CloseIcon size={16} className="text-vault-muted" />
               </button>
             </div>
             <div className="p-6 overflow-y-auto space-y-4">
@@ -1168,13 +1181,13 @@ export const VaultDashboard: React.FC = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-vault-border bg-vault-cardBg">
               <h2 className="text-lg font-bold text-vault-text flex items-center gap-2">
-                <Icons.Settings size={20} className="text-vault-accent" /> Advanced Options & Export
+                <Icons.SettingsIcon size={20} className="text-vault-accent" /> Advanced Options & Export
               </h2>
               <button 
                 onClick={() => setIsSettingsOpen(false)} 
                 className="vault-btn p-1.5 h-8 w-8 flex items-center justify-center rounded-full hover:bg-vault-bg border-none"
               >
-                <Icons.CircleX size={16} className="text-vault-muted" />
+                <Icons.CloseIcon size={16} className="text-vault-muted" />
               </button>
             </div>
 
@@ -1187,7 +1200,7 @@ export const VaultDashboard: React.FC = () => {
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    <div className="bg-vault-cardBg border border-vault-border rounded p-4 flex flex-col gap-3">
                      <div className="flex items-center gap-2 text-vault-text font-bold">
-                       <Icons.FileJson size={18} className="text-vault-accent"/> Export Vault JSON
+                       <Icons.ExportIcon size={18} className="text-vault-accent"/> Export Vault JSON
                      </div>
                      <p className="text-xs text-vault-muted leading-relaxed flex-1">
                        Download a complete JSON backup of all metadata, tags, and references safely to your local machine.
@@ -1199,7 +1212,7 @@ export const VaultDashboard: React.FC = () => {
 
                    <div className="bg-vault-cardBg border border-vault-border rounded p-4 flex flex-col gap-3">
                      <div className="flex items-center gap-2 text-vault-text font-bold">
-                       <Icons.FileUp size={18} className="text-vault-accent"/> Import Vault Backup
+                       <Icons.ImportIcon size={18} className="text-vault-accent"/> Import Vault Backup
                      </div>
                      <p className="text-xs text-vault-muted leading-relaxed flex-1">
                        Restore a previously exported Vault JSON file. Note: Pre-existing duplicate URLs will be skipped.
@@ -1213,7 +1226,7 @@ export const VaultDashboard: React.FC = () => {
                    <div className="col-span-1 md:col-span-2 bg-vault-cardBg border border-vault-border rounded p-4 flex flex-col md:flex-row items-center justify-between gap-4">
                      <div className="flex-1">
                        <h4 className="text-vault-text font-bold flex items-center gap-2">
-                         <Icons.Shield size={16} className="text-vault-accent"/> Debug Logs
+                         <Icons.DebugIcon size={16} className="text-vault-accent"/> Debug Logs
                        </h4>
                        <p className="text-xs text-vault-muted mt-1">Download background capture logs for troubleshooting extension issues.</p>
                      </div>
@@ -1235,7 +1248,7 @@ export const VaultDashboard: React.FC = () => {
                  <h3 className="text-sm font-black uppercase text-red-500/80 mb-4 border-b border-red-900/30 pb-2 tracking-widest">Danger Zone</h3>
                  <div className="bg-red-900/10 border border-red-900/30 rounded p-4 flex flex-col md:flex-row items-center justify-between gap-4">
                    <div>
-                     <h4 className="text-red-400 font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> Wipe Vault Data</h4>
+                     <h4 className="text-red-400 font-bold flex items-center gap-2"><Icons.AlertIcon size={16}/> Wipe Vault Data</h4>
                      <p className="text-xs text-red-400/70 mt-1">Permanently obliterate all bookmarks, metadata, and blob previews from IndexedDB.</p>
                    </div>
                    <button onClick={handleWipeVault} className="vault-btn py-2 px-4 shadow-[0_0_15px_-3px_var(--color-red-500)] text-xs font-black uppercase tracking-widest bg-red-600 hover:bg-red-500 text-white border-none whitespace-nowrap">
@@ -1276,7 +1289,7 @@ export const VaultDashboard: React.FC = () => {
                   )}
                   title={isDimmed ? "Turn Lights ON" : "Turn Lights OFF"}
                 >
-                  <Icons.Palette size={16} fill={isDimmed ? "currentColor" : "none"} />
+                  <Icons.ThemeIcon size={16} fill={isDimmed ? "currentColor" : "none"} />
                 </button>
                 <h3 className="font-bold text-lg text-vault-text line-clamp-1 pr-4">
                   {playingVideo.title || 'Untitled Video'}
@@ -1287,7 +1300,7 @@ export const VaultDashboard: React.FC = () => {
                 onClick={() => { setPlayingVideo(null); setIsDimmed(false); }}
                 className="vault-btn p-1.5 h-8 w-8 flex items-center justify-center rounded-full hover:bg-red-500/10 hover:text-red-500 transition-colors border-none"
               >
-                <Icons.CircleX size={20} />
+                <Icons.CloseIcon size={20} />
               </button>
             </div>
             
@@ -1316,7 +1329,7 @@ export const VaultDashboard: React.FC = () => {
                 </div>
               ) : videoError ? (
                 <div className="text-center space-y-4 p-6">
-                  <Icons.AlertCircle className="mx-auto text-yellow-500" size={48} />
+                  <Icons.AlertIcon className="mx-auto text-yellow-500" size={48} />
                   <div>
                     <h4 className="text-vault-text font-bold text-lg mb-1">Playback Failed</h4>
                     <p className="text-vault-muted text-sm">The media link may have expired or is blocked by CORS.</p>
@@ -1351,7 +1364,7 @@ export const VaultDashboard: React.FC = () => {
                             setVideoError(true);
                           }
                         } catch (err) {
-                          console.error("Refresh failed:", err);
+                          // ...existing code...
                           setVideoError(true);
                         } finally {
                           setIsRefreshing(false);

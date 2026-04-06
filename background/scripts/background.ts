@@ -133,9 +133,9 @@ async function doTabExtraction(targetUrl: string): Promise<ExtractionResult | nu
 
             // Global safety timeout
             globalTimeoutId = setTimeout(() => {
-                logger.warn("Global isolation timeout reached (16s)");
+                logger.warn("Global isolation timeout reached (25s)");
                 cleanup(latestM3u8 ? { src: latestM3u8, metadata: defaultMetadata } : null, "Timeout reached");
-            }, 16000);
+            }, 25000);
 
             // 1. Network intercept for streaming and direct video requests
             if (browser.webRequest) {
@@ -157,6 +157,7 @@ async function doTabExtraction(targetUrl: string): Promise<ExtractionResult | nu
                         }
                     }
                 };
+
                 browser.webRequest.onBeforeRequest.addListener(
                     webRequestListener,
                     { urls: ["<all_urls>"], tabId: scraperTabId }
@@ -186,10 +187,16 @@ async function doTabExtraction(targetUrl: string): Promise<ExtractionResult | nu
                             
                             const captureVideoFrame = async (video: HTMLVideoElement): Promise<string | null> => {
                                 try {
+                                    // Ensure it's playing or at least seeked slightly to have video content
+                                    if (video.currentTime === 0) {
+                                      video.currentTime = 5; // seek slightly into the video
+                                      await new Promise(r => setTimeout(r, 800));
+                                    }
+
                                     if (video.readyState < 2) {
                                         await new Promise((res) => {
                                             video.addEventListener('loadeddata', res, {once: true});
-                                            setTimeout(res, 1000);
+                                            setTimeout(res, 2000);
                                         });
                                     }
                                     const canvas = document.createElement('canvas');
@@ -204,6 +211,33 @@ async function doTabExtraction(targetUrl: string): Promise<ExtractionResult | nu
                                     return null;
                                 }
                                 return null;
+                            };
+
+                            const clickAllPlayers = async () => {
+                                const selectors = [
+                                    'video', 'iframe', 'button[aria-label*="Play"]', 
+                                    'button[title*="Play"]', '.vjs-big-play-button', 
+                                    '.ytp-large-play-button', '.jw-display-icon-container',
+                                    '[class*="play"]', '[id*="play"]', '[role="button"]'
+                                ];
+                                
+                                for (const selector of selectors) {
+                                    try {
+                                        const elements = document.querySelectorAll(selector);
+                                        for (const el of Array.from(elements)) {
+                                            const rect = el.getBoundingClientRect();
+                                            if (rect.width > 0 && rect.height > 0) {
+                                                if (el instanceof HTMLVideoElement) {
+                                                    el.play().catch(() => {});
+                                                } else {
+                                                    (el as HTMLElement).click();
+                                                }
+                                                // Small delay between clicks to prevent browser from blocking or site from lagging
+                                                await delay(200);
+                                            }
+                                        }
+                                    } catch (e) {}
+                                }
                             };
 
                             const findBestVideoAndMeta = async () => {
@@ -313,7 +347,7 @@ async function doTabExtraction(targetUrl: string): Promise<ExtractionResult | nu
                                         const rect = v.getBoundingClientRect();
                                         let score = rect.width * rect.height;
                                         const idClass = (v.id + ' ' + v.className).toLowerCase();
-                                        if (idClass.match(/player|main|primary|hero|video-js|vjs|jwplayer/)) {
+                                        if (idClass.match(/media-player|player|main|primary|hero|video-js|vjs|jwplayer/)) {
                                             score += 1000000;
                                         }
                                         if (score > maxScore) { maxScore = score; mainPlayer = v; }
@@ -327,8 +361,9 @@ async function doTabExtraction(targetUrl: string): Promise<ExtractionResult | nu
                                     }
                                 }
 
-                                // Give the page another second to emit network requests after play
-                                await delay(1000);
+                                logger.log("Passive scan failed, attempting aggressive clicks...");
+                                await clickAllPlayers();
+                                await delay(3000);
                                 result = await findBestVideoAndMeta();
                             }
                             return result;
@@ -391,22 +426,34 @@ async function doTabExtraction(targetUrl: string): Promise<ExtractionResult | nu
 async function openDashboard() {
     const url = browser.runtime.getURL('dashboard-v2.html');
     const tabs = await browser.tabs.query({});
-    
+
     // Check for existing dashboard by stored ID or URL fallback
     const { [STORAGE_KEYS.ACTIVE_TAB_ID]: storedTabId } = await browser.storage.local.get(STORAGE_KEYS.ACTIVE_TAB_ID);
-    
+
     let dashboardTab: browser.Tabs.Tab | undefined;
-    
+
+    // Helper: returns true if tab is a valid dashboard tab
+    function isValidDashboardTab(tab: browser.Tabs.Tab | undefined) {
+        if (!tab || !tab.url) return false;
+        // Ignore extension management/debugging pages
+        if (tab.url.startsWith('about:debugging') || tab.url.startsWith('about:addons') || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) return false;
+        // Only match dashboard-v2.html
+        return tab.url.startsWith(url);
+    }
+
     if (storedTabId && typeof storedTabId === 'number') {
         try {
-            dashboardTab = await browser.tabs.get(storedTabId);
+            const candidateTab = await browser.tabs.get(storedTabId);
+            if (isValidDashboardTab(candidateTab)) {
+                dashboardTab = candidateTab;
+            }
         } catch (e) {
             // Tab likely closed
         }
     }
 
     if (!dashboardTab) {
-        dashboardTab = tabs.find(t => t.url && t.url.startsWith(url));
+        dashboardTab = tabs.find(isValidDashboardTab);
     }
 
     if (dashboardTab && dashboardTab.id) {

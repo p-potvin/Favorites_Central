@@ -19,47 +19,33 @@ function createExtensionSafeIcon(IconComponent: React.ComponentType<LucideProps>
 }
 
 // --- Vault Dashboard Icons ---
-export const Heart = createExtensionSafeIcon(LucideIcons.Heart);
-export const Search = createExtensionSafeIcon(LucideIcons.Search);
-export const Shield = createExtensionSafeIcon(LucideIcons.Shield);
-export const ShieldAlert = createExtensionSafeIcon(LucideIcons.ShieldAlert);
-export const ShieldCheck = createExtensionSafeIcon(LucideIcons.ShieldCheck);
-export const Settings = createExtensionSafeIcon(LucideIcons.Settings);
-export const Palette = createExtensionSafeIcon(LucideIcons.Palette);
-export const Menu = createExtensionSafeIcon(LucideIcons.Menu);
-export const FolderTree = createExtensionSafeIcon(LucideIcons.FolderTree);
-export const Folders = createExtensionSafeIcon(LucideIcons.Folders);
-export const ArrowDownAZ = createExtensionSafeIcon(LucideIcons.ArrowDownAZ);
-export const LayoutTemplate = createExtensionSafeIcon(LucideIcons.LayoutTemplate);
-export const LayoutGrid = createExtensionSafeIcon(LucideIcons.LayoutGrid);
-export const ChevronRight = createExtensionSafeIcon(LucideIcons.ChevronRight);
-export const ChevronLeft = createExtensionSafeIcon(LucideIcons.ChevronLeft);
-export const ArrowLeft = createExtensionSafeIcon(LucideIcons.ArrowLeft);
-export const Trash2 = createExtensionSafeIcon(LucideIcons.Trash2);
-export const Trash = createExtensionSafeIcon(LucideIcons.Trash);
-export const Edit2 = createExtensionSafeIcon(LucideIcons.Edit2);
-export const FileEdit = createExtensionSafeIcon(LucideIcons.FileEdit);
-export const Play = createExtensionSafeIcon(LucideIcons.Play);
-export const PlayCircle = createExtensionSafeIcon(LucideIcons.PlayCircle);
-export const X = createExtensionSafeIcon(LucideIcons.X);
-export const CircleX = createExtensionSafeIcon(LucideIcons.CircleX);
-export const AlertTriangle = createExtensionSafeIcon(LucideIcons.AlertTriangle);
-export const AlertCircle = createExtensionSafeIcon(LucideIcons.AlertCircle);
-export const RefreshCw = createExtensionSafeIcon(LucideIcons.RefreshCw);
-export const Loader2 = createExtensionSafeIcon(LucideIcons.Loader2);
-export const Lock = createExtensionSafeIcon(LucideIcons.Lock);
-export const Download = createExtensionSafeIcon(LucideIcons.Download);
-export const FileJson = createExtensionSafeIcon(LucideIcons.FileJson);
-export const Upload = createExtensionSafeIcon(LucideIcons.Upload);
-export const FileUp = createExtensionSafeIcon(LucideIcons.FileUp);
-export const PanelLeftClose = createExtensionSafeIcon(LucideIcons.PanelLeftClose);
-export const PanelLeftOpen = createExtensionSafeIcon(LucideIcons.PanelLeftOpen);
-export const Sidebar = createExtensionSafeIcon(LucideIcons.Sidebar);
 
-// --- Pin Entry additional Icons ---
-export const Unlock = createExtensionSafeIcon(LucideIcons.Unlock);
-export const Key = createExtensionSafeIcon(LucideIcons.Key);
-export const Fingerprint = createExtensionSafeIcon(LucideIcons.Fingerprint);
-export const Eye = createExtensionSafeIcon(LucideIcons.Eye);
-export const EyeOff = createExtensionSafeIcon(LucideIcons.EyeOff);
-export const Hash = createExtensionSafeIcon(LucideIcons.Hash);
+// Dashboard/Sidebar
+export const ViewModeIcon = createExtensionSafeIcon(LucideIcons.SlidersHorizontal); // for view mode
+export const ThemeIcon = createExtensionSafeIcon(LucideIcons.Palette); // for theme
+export const SettingsIcon = createExtensionSafeIcon(LucideIcons.Settings); // for settings/advanced
+export const SearchIcon = createExtensionSafeIcon(LucideIcons.Search); // for search
+export const GroupIcon = createExtensionSafeIcon(LucideIcons.FolderTree); // for group by
+export const SortIcon = createExtensionSafeIcon(LucideIcons.ArrowDownAZ); // for sort
+export const PinIcon = createExtensionSafeIcon(LucideIcons.Lock); // for PIN protection
+export const ExportIcon = createExtensionSafeIcon(LucideIcons.FileJson); // for export
+export const ImportIcon = createExtensionSafeIcon(LucideIcons.FileUp); // for import
+export const DebugIcon = createExtensionSafeIcon(LucideIcons.Bug); // for debug logs
+export const DeleteIcon = createExtensionSafeIcon(LucideIcons.Trash); // for delete
+export const EditIcon = createExtensionSafeIcon(LucideIcons.FileEdit); // for edit
+export const PlayIcon = createExtensionSafeIcon(LucideIcons.PlayCircle); // for play/open
+export const BackIcon = createExtensionSafeIcon(LucideIcons.ArrowLeft); // for back
+export const ChevronLeftIcon = createExtensionSafeIcon(LucideIcons.ChevronLeft);
+export const ChevronRightIcon = createExtensionSafeIcon(LucideIcons.ChevronRight);
+export const CloseIcon = createExtensionSafeIcon(LucideIcons.CircleX); // for close/cancel
+export const AlertIcon = createExtensionSafeIcon(LucideIcons.AlertCircle); // for alert/warning
+export const LoaderIcon = createExtensionSafeIcon(LucideIcons.Loader2); // for loading
+export const RefreshIcon = createExtensionSafeIcon(LucideIcons.RefreshCw); // for refresh
+
+// Pin Entry
+export const UnlockIcon = createExtensionSafeIcon(LucideIcons.Unlock);
+export const KeyIcon = createExtensionSafeIcon(LucideIcons.Key);
+export const FingerprintIcon = createExtensionSafeIcon(LucideIcons.Fingerprint);
+export const EyeIcon = createExtensionSafeIcon(LucideIcons.Eye);
+export const EyeOffIcon = createExtensionSafeIcon(LucideIcons.EyeOff);
+export const HashIcon = createExtensionSafeIcon(LucideIcons.Hash);
