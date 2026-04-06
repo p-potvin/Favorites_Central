@@ -5,3 +5,5 @@ package/
 test-results/
 coverage/
 playwright-report
+dist.crx
+dist.pem
