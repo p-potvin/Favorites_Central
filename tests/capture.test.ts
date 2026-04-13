@@ -7,14 +7,14 @@ test.describe('Video Capture E2E', () => {
         const link = page.locator('a').first();
         await link.hover();
         await page.evaluate(() => {
-            window.postMessage({ type: 'FAVORITES_CAPTURE_TRIGGER', command: 'capture-video' }, '*');
+            window.postMessage({ type: 'VAULT_CAPTURE_TRIGGER', command: 'capture-video' }, '*');
         });
         let saved = false;
         for (let i = 0; i < 20; i++) {
             const data = await page.evaluate(async () => {
                 return new Promise((resolve) => {
                     if (typeof chrome !== 'undefined' && chrome.storage) {
-                        chrome.storage.local.get('savedVideos', (d) => resolve(d.savedVideos || []));
+                        chrome.storage.local.get('savedVideos', (d: any) => resolve(d.savedVideos || []));
                     } else resolve([]);
                 });
             }) as any[];

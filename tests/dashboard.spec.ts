@@ -1,6 +1,6 @@
 import { test, expect } from './extension.fixture';
 
-test.describe('Favorites Central E2E Tests', () => {
+test.describe('Vault Central E2E Tests', () => {
 
   test('Dashboard should load with correct title and branding', async ({ context, extensionId, browserName }) => {
     const page = await context.newPage();

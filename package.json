@@ -1,6 +1,6 @@
 {
-  "name": "vault_central",
-  "version": "3.1.0",
+  "name": "vault-central",
+  "version": "3.2.0",
   "description": "A simple and lightweight browser extension designed to instantly save your favorite videos and links while browsing. By utilizing a quick keyboard shortcut, you can effortlessly capture the video or link directly under your mouse cursor and store it in a neatly organized dashboard.",
   "main": "content.js",
   "scripts": {
@@ -12,15 +12,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/p-potvin/vault_central.git"
+    "url": "git+https://github.com/p-potvin/vault-central.git"
   },
   "keywords": ["Videos", "Favorites", "Bookmarks", "Save", "Dashboard", "Customization", "Secured"],
   "author": "VaultWares",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/p-potvin/vault_central/issues"
+    "url": "https://github.com/p-potvin/vault-central/issues"
   },
-  "homepage": "https://github.com/p-potvin/vault_central#readme",
+  "homepage": "https://github.com/p-potvin/vault-central#readme",
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.9.1",

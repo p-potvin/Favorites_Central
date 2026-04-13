@@ -16,12 +16,12 @@ if (!fs.existsSync(outputDir)) {
 }
 
 const timestamp = Date.now();
-const output = fs.createWriteStream(path.join(outputDir, `favorites_central_${timestamp}.zip`));
+const output = fs.createWriteStream(path.join(outputDir, `vault-central_${timestamp}.zip`));
 const archive = archiver('zip', { zlib: { level: 9 } });
 
 output.on('close', () => {
     console.log(`\x1b[32mSuccess! Archive created: ${archive.pointer()} total bytes\x1b[0m`);
-    console.log('\x1b[36mPath:\x1b[0m', path.join(outputDir, `favorites_central_${timestamp}.zip`));
+    console.log('\x1b[36mPath:\x1b[0m', path.join(outputDir, `vault-central_${timestamp}.zip`));
 });
 
 archive.on('error', (err) => { throw err; });

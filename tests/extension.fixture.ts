@@ -41,9 +41,9 @@ export const test = base.extend<{
   },
   extensionId: async ({ context, browserName }, use) => {
     if (browserName === 'chromium') {
-      let [background] = context.serviceWorkers();
+      let background: any = context.serviceWorkers()[0];
       if (!background) {
-        background = await context.waitForEvent('serviceworker', { timeout: 15000 }).catch(() => null);
+        background = await context.waitForEvent('serviceworker', { timeout: 15000 }).catch(() => undefined);
       }
       
       if (!background) {
@@ -75,10 +75,10 @@ export const test = base.extend<{
       await use(extensionId);
     } else {
       // In Firefox, Playwright doesn't easily return the internal UUID in headless mode
-      // But for our tests, the manifest ID "favorites-central@p-potvin" can sometimes work
+      // But for our tests, the manifest ID "vault-central@p-potvin" can sometimes work
       // depending on how the URL is resolved.
       // Let's use the static ID and allow the test to fail if it can't find the page.
-      await use('favorites-central@p-potvin');
+      await use('vault-central@p-potvin');
     }
   },
 });

@@ -1,4 +1,4 @@
-# 🛡️ Favorites Central (VaultWares Edition)
+# 🛡️ Vault Central
 
 A security-first, high-performance browser extension designed to instantly vault your favorite videos and links. Built with TypeScript, Zod, and Vite for maximum integrity and cross-browser compatibility (Chrome & Firefox).
 
@@ -37,7 +37,7 @@ Before starting, ensure you have the following installed on your computer:
 1.  Open your browser and type `chrome://extensions/` in the address bar.
 2.  In the top right, turn **ON** the switch that says **Developer mode**.
 3.  Click the **Load unpacked** button in the top left.
-4.  Select the `dist` folder located inside your `favorites_central` directory.
+4.  Select the `dist` folder located inside your `vault-central` directory.
 5.  **Done!** Look for the Vault icon in your extensions toolbar.
 
 ### For Firefox
@@ -49,13 +49,13 @@ Before starting, ensure you have the following installed on your computer:
 ---
 
 ## ⌨️ Tactical Controls
-*   **Save Item**: Hover your mouse over any video/link and press the keyboard shortcut (Default: `Alt+F` or as configured in browser settings).
+*   **Save Item**: Hover your mouse over any video/link and press the keyboard shortcut (Default: `Alt+X` or as configured in browser settings).
 *   **Open Vault**: Click the extension icon in your toolbar to view your saved favorites.
 
 ---
 
 ## 🔒 Security Policy
-This version of Favorites Central follows the **VaultWares "Security-First"** standard:
+This version of Vault Central follows the **VaultWares "Security-First" Standard**:
 *   **Data Integrity**: Every piece of data extracted from the web is validated via Zod schemas to prevent XSS attacks.
 *   **Isolation**: Uses background tab isolation for HLS (`.m3u8`) stream interception.
 *   **Zero External Tracking**: All data stays within your browser's local storage.

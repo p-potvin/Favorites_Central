@@ -81,7 +81,7 @@ async function highlightVaultItems() {
  * Industrial Notification System (Modernized)
  */
 const activeNotifications = new Map();
-const MAX_CONCURRENT_NOTIFICATIONS = 10;
+const MAX_CONCURRENT_NOTIFICATIONS = 5;
 function showVaultNotification(type, message, id) {
     const portalId = id || `vault-notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     // If we have an existing notification with this ID (e.g. updating processing -> success), reuse it
@@ -336,9 +336,9 @@ function startCaptureFlow() {
     const target = getBestTarget(lastHoveredElement);
     const notificationId = `capture-${Date.now()}`;
     showVaultNotification("processing", `Infiltrating: ${target.localMeta.title?.substring(0, 20)}...`, notificationId);
-    attemptExtraction(target);
+    attemptExtraction(target, notificationId);
 }
-function attemptExtraction(target) {
+function attemptExtraction(target, notificationId) {
     console.log("[VaultAuth] Attempting extraction for:", target.url);
     const isLocalCapture = target.url === window.location.href || target.isDirectVideo;
     let safeHostname = window.location.hostname;
@@ -371,19 +371,19 @@ function attemptExtraction(target) {
     }).then((res) => {
         const response = res;
         if (!response) {
-            showVaultNotification('error', 'Extension background offline');
+            showVaultNotification('error', 'Extension background offline', notificationId);
             return;
         }
         if (response.success) {
-            showVaultNotification('success', 'Added to Vault');
+            showVaultNotification('success', 'Added to Vault', notificationId);
             highlightVaultItems();
         }
         else {
-            showVaultNotification('error', response.message || 'Failed to capture');
+            showVaultNotification('error', response.message || 'Failed to capture', notificationId);
         }
     }).catch((e) => {
         console.error("[VaultAuth] Message passing error:", e);
-        showVaultNotification('error', 'Connection to Vault lost');
+        showVaultNotification('error', 'Connection to Vault lost', notificationId);
     });
 }
 browser.runtime.onMessage.addListener((request, sender) => {

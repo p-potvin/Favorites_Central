@@ -93,7 +93,7 @@ async function highlightVaultItems() {
  * Industrial Notification System (Modernized)
  */
 const activeNotifications = new Map<string, HTMLElement>();
-const MAX_CONCURRENT_NOTIFICATIONS = 10;
+const MAX_CONCURRENT_NOTIFICATIONS = 5;
 
 function showVaultNotification(type: 'success' | 'removed' | 'error' | 'processing', message: string, id?: string) {
     const portalId = id || `vault-notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -381,7 +381,7 @@ function startCaptureFlow() {
     const notificationId = `capture-${Date.now()}`;
     showVaultNotification("processing", `Infiltrating: ${target.localMeta.title?.substring(0, 20)}...`, notificationId);
 
-    attemptExtraction(target);
+    attemptExtraction(target, notificationId);
 }
 
 export interface TargetPayload {
@@ -395,7 +395,7 @@ export interface TargetPayload {
     };
 }
 
-function attemptExtraction(target: TargetPayload) {
+function attemptExtraction(target: TargetPayload, notificationId?: string) {
     console.log("[VaultAuth] Attempting extraction for:", target.url);
     
     const isLocalCapture = target.url === window.location.href || target.isDirectVideo;
@@ -432,18 +432,18 @@ function attemptExtraction(target: TargetPayload) {
     }).then((res: unknown) => {
         const response = res as { success?: boolean; message?: string } | undefined;
         if (!response) {
-            showVaultNotification('error', 'Extension background offline');
+            showVaultNotification('error', 'Extension background offline', notificationId);
             return;
         }
         if (response.success) {
-            showVaultNotification('success', 'Added to Vault');
+            showVaultNotification('success', 'Added to Vault', notificationId);
             highlightVaultItems();
         } else {
-            showVaultNotification('error', response.message || 'Failed to capture');
+            showVaultNotification('error', response.message || 'Failed to capture', notificationId);
         }
     }).catch((e: Error) => {
         console.error("[VaultAuth] Message passing error:", e);
-        showVaultNotification('error', 'Connection to Vault lost');
+        showVaultNotification('error', 'Connection to Vault lost', notificationId);
     });
 }
 
