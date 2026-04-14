@@ -28,13 +28,13 @@ export const ExportIcon = createExtensionSafeIcon(LucideIcons.FileJson); // for 
 export const ImportIcon = createExtensionSafeIcon(LucideIcons.FileUp); // for import
 export const DebugIcon = createExtensionSafeIcon(LucideIcons.Bug); // for debug logs
 export const DeleteIcon = createExtensionSafeIcon(LucideIcons.Trash); // for delete
-export const EditIcon = createExtensionSafeIcon(LucideIcons.FileEdit); // for edit
-export const PlayIcon = createExtensionSafeIcon(LucideIcons.PlayCircle); // for play/open
+export const EditIcon = createExtensionSafeIcon(LucideIcons.SquarePen); // for edit (was FileEdit, deprecated in v0.462)
+export const PlayIcon = createExtensionSafeIcon(LucideIcons.CirclePlay); // for play/open (was PlayCircle, deprecated in v0.462)
 export const BackIcon = createExtensionSafeIcon(LucideIcons.ArrowLeft); // for back
 export const ChevronLeftIcon = createExtensionSafeIcon(LucideIcons.ChevronLeft);
 export const ChevronRightIcon = createExtensionSafeIcon(LucideIcons.ChevronRight);
 export const CloseIcon = createExtensionSafeIcon(LucideIcons.CircleX); // for close/cancel
-export const AlertIcon = createExtensionSafeIcon(LucideIcons.AlertCircle); // for alert/warning
+export const AlertIcon = createExtensionSafeIcon(LucideIcons.CircleAlert); // for alert/warning (was AlertCircle, deprecated in v0.462)
 export const LoaderIcon = createExtensionSafeIcon(LucideIcons.Loader2); // for loading
 export const RefreshIcon = createExtensionSafeIcon(LucideIcons.RefreshCw); // for refresh
 // Pin Entry

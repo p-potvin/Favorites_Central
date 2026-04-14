@@ -8,3 +8,6 @@ playwright-report
 dist.crx
 dist.pem
 vault_central.zip
+.venv
+.vscode
+.vscode-test
