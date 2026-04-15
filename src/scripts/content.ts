@@ -14,6 +14,43 @@ const LOG_PREFIX = "[VaultAuth:content]";
 let lastHoveredElement: HTMLElement | null = null;
 let mutationTimeout: ReturnType<typeof setTimeout> | null = null;
 
+interface VideoNodeEntry {
+    element: HTMLVideoElement;
+    src: string;
+}
+
+interface ImgNodeEntry {
+    element: HTMLImageElement;
+    src: string;
+}
+
+const videoNodes: VideoNodeEntry[] = [];
+const imgNodes: ImgNodeEntry[] = [];
+const registeredVideos = new WeakSet<HTMLVideoElement>();
+const registeredImgs = new WeakSet<HTMLImageElement>();
+
+function addVideoNode(el: HTMLVideoElement) {
+    if (registeredVideos.has(el)) return;
+    registeredVideos.add(el);
+    const src = el.src || (el.querySelector('source') as HTMLSourceElement | null)?.src || '';
+    videoNodes.push({ element: el, src });
+    console.log(`${LOG_PREFIX} addVideoNode: registered <video> src="${src.substring(0, 60)}"`);
+}
+
+function addImgNode(el: HTMLImageElement) {
+    if (registeredImgs.has(el)) return;
+    registeredImgs.add(el);
+    const src = el.src || '';
+    imgNodes.push({ element: el, src });
+    console.log(`${LOG_PREFIX} addImgNode: registered <img> src="${src.substring(0, 60)}"`);
+}
+
+function gatherMediaNodes() {
+    document.querySelectorAll<HTMLVideoElement>('video').forEach(addVideoNode);
+    document.querySelectorAll<HTMLImageElement>('img').forEach(addImgNode);
+    console.log(`${LOG_PREFIX} gatherMediaNodes: ${videoNodes.length} video(s), ${imgNodes.length} img(s) registered.`);
+}
+
 document.addEventListener("mousemove", (e: MouseEvent) => {
     lastHoveredElement = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
 }, { passive: true });
@@ -349,22 +386,20 @@ function getBestTarget(element: HTMLElement | null): { url: string, isDirectVide
         return result;
     }
 
-    const video = element.closest('video') || element.querySelector('video');
-    if (video) {
-        console.log(`${LOG_PREFIX} getBestTarget: found <video> element. Attempting frame capture.`);
-        result.fallbackThumbnail = captureVideoFrame(video as HTMLVideoElement);
-    } else if (element.tagName.toLowerCase() === 'img') {
-        result.fallbackThumbnail = (element as HTMLImageElement).src;
-        console.log(`${LOG_PREFIX} getBestTarget: element is <img>. fallbackThumbnail src length=${result.fallbackThumbnail?.length ?? 0}`);
+    const videoEntry = videoNodes.find(v => element.contains(v.element) || v.element.contains(element) || v.element === element);
+    const imgEntry = !videoEntry ? imgNodes.find(i => element.contains(i.element) || i.element.contains(element) || i.element === element) : undefined;
+
+    if (videoEntry) {
+        console.log(`${LOG_PREFIX} getBestTarget: found <video> in registry. Attempting frame capture.`);
+        result.fallbackThumbnail = captureVideoFrame(videoEntry.element);
+    } else if (imgEntry) {
+        result.fallbackThumbnail = imgEntry.src;
+        console.log(`${LOG_PREFIX} getBestTarget: found <img> in registry. fallbackThumbnail src length=${result.fallbackThumbnail?.length ?? 0}`);
     } else {
-        const img = element.querySelector('img');
-        if (img) {
-            result.fallbackThumbnail = img.src;
-            console.log(`${LOG_PREFIX} getBestTarget: found child <img>. fallbackThumbnail src length=${result.fallbackThumbnail?.length ?? 0}`);
-        } else {
-            console.log(`${LOG_PREFIX} getBestTarget: no <video> or <img> found under element. fallbackThumbnail will be null.`);
-        }
+        console.log(`${LOG_PREFIX} getBestTarget: no <video> or <img> found in registry for element. fallbackThumbnail will be null.`);
     }
+
+    const video = videoEntry?.element ?? null;
 
     const anchor = element.closest('a');
     if (anchor && anchor.href) {
@@ -376,14 +411,14 @@ function getBestTarget(element: HTMLElement | null): { url: string, isDirectVide
     }
 
     if (video) {
-        const src = (video as HTMLVideoElement).src || (video as HTMLVideoElement).querySelector('source')?.src;
+        const src = videoEntry?.src || video.src || video.querySelector('source')?.src;
         if (src && !src.startsWith('blob:')) {
             result.url = src;
             result.isDirectVideo = true;
             console.log(`${LOG_PREFIX} getBestTarget: resolved URL from video.src:`, result.url);
             return result;
         } else {
-            console.warn(`${LOG_PREFIX} getBestTarget: video.src is a blob or empty:`, (video as HTMLVideoElement).src);
+            console.warn(`${LOG_PREFIX} getBestTarget: video.src is a blob or empty:`, video.src);
         }
     }
 
@@ -506,23 +541,39 @@ browser.runtime.onMessage.addListener((request: any, sender: any) => {
     return undefined;
 });
 
-const observer = new MutationObserver(() => {
+const observer = new MutationObserver((mutations: MutationRecord[]) => {
     if (mutationTimeout) clearTimeout(mutationTimeout);
     mutationTimeout = setTimeout(() => {
         console.log(`${LOG_PREFIX} MutationObserver: DOM changed. Rescanning for saved items...`);
         highlightVaultItems();
     }, 1200);
+
+    for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+            if (node.nodeType !== Node.ELEMENT_NODE) continue;
+            const el = node as Element;
+            if (el.tagName === 'VIDEO') {
+                addVideoNode(el as HTMLVideoElement);
+            } else if (el.tagName === 'IMG') {
+                addImgNode(el as HTMLImageElement);
+            }
+            el.querySelectorAll<HTMLVideoElement>('video').forEach(addVideoNode);
+            el.querySelectorAll<HTMLImageElement>('img').forEach(addImgNode);
+        }
+    }
 });
 
 if (document.body) {
     observer.observe(document.body, { childList: true, subtree: true });
     console.log(`${LOG_PREFIX} MutationObserver attached. Running initial highlightVaultItems.`);
+    gatherMediaNodes();
     highlightVaultItems();
 } else {
     window.addEventListener("DOMContentLoaded", () => {
         if (document.body) {
             observer.observe(document.body, { childList: true, subtree: true });
             console.log(`${LOG_PREFIX} DOMContentLoaded: MutationObserver attached. Running initial highlightVaultItems.`);
+            gatherMediaNodes();
             highlightVaultItems();
         }
     });
