@@ -1,4 +1,4 @@
-// AUTO-GENERATED FROM vault-themes — DO NOT EDIT MANUALLY
+// AUTO-GENERATED FROM vault-themes â€” DO NOT EDIT MANUALLY
 export type VaultTheme = { id: number; name: string; mode: 'light' | 'dark'; };
 export const VAULT_THEMES: Record<number, VaultTheme> = {
   1: { id: 1, name: 'vintage-velvet', mode: 'light' },
