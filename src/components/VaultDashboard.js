@@ -102,7 +102,7 @@ export const VaultDashboard = () => {
     const [items, setItems] = useState([]);
     const [search, setSearch] = useState('');
     const [searchField, setSearchField] = useState('title');
-    const [currentTheme, setCurrentTheme] = useState(3);
+    const [currentTheme, setCurrentTheme] = useState(10);
     // Sidebar states
     const [isSidebarOpen, setSidebarOpen] = useState(() => {
         const saved = localStorage.getItem('vault-sidebar-open');
@@ -252,8 +252,8 @@ export const VaultDashboard = () => {
             document.documentElement.classList.toggle('dark', mode === 'dark');
         }
         else {
-            document.documentElement.setAttribute('data-theme', getThemeClass(3));
-            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', getThemeClass(10));
+            // Solarized Light is a light theme — no 'dark' class needed
         }
         const savedSidebar = localStorage.getItem('vault-sidebar-open');
         if (savedSidebar !== null) {
@@ -346,9 +346,9 @@ export const VaultDashboard = () => {
         localStorage.setItem('vault-theme', id.toString());
     };
     const cycleTheme = () => {
-        const nextTheme = currentTheme === 9 ? 1 : currentTheme + 1;
+        const nextTheme = currentTheme >= 11 ? 1 : currentTheme + 1;
         setCurrentTheme(nextTheme);
-        const mode = VAULT_THEMES[nextTheme]?.mode || 'dark';
+        const mode = VAULT_THEMES[nextTheme]?.mode || 'light';
         document.documentElement.setAttribute('data-theme', getThemeClass(nextTheme));
         document.documentElement.classList.toggle('dark', mode === 'dark');
         localStorage.setItem('vault-theme', nextTheme.toString());

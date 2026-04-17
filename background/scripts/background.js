@@ -1,5 +1,6 @@
 import browser from 'webextension-polyfill';
 import { getSavedVideos, saveVideos } from '../../src/lib/storage-vault';
+import { savePreview } from '../../src/lib/dexie-store';
 import { STORAGE_KEYS } from '../../src/lib/constants';
 class DebugLogger {
     logs = [];
@@ -79,15 +80,26 @@ async function doTabExtraction(targetUrl) {
         try {
             // BUG FIX: Do NOT call browser.tabs.hide() on a newly-created tab.
             // Chrome's API explicitly states: "Tabs hidden since creation are never loaded."
-            // Calling hide() immediately after create() suspends the tab before it can load,
-            // so the tabUpdateListener waiting for status='complete' never fires, and
-            // the 35s global timeout becomes the only exit — causing the user to see nothing
-            // until they manually focus the tab (which resumes loading).
-            // Creating with active: false is sufficient to avoid stealing focus without suspending the tab.
-            const scraperTab = await browser.tabs.create({ url: targetUrl, active: false });
-            logger.log("[doTabExtraction] Scraper tab created. tabId:", scraperTab.id, "windowId:", scraperTab.windowId, "| NOTE: NOT hiding tab — hiding a tab since creation prevents it from loading in Chrome.");
+            // Also, to bypass autoplay/decode throttling on inactive tabs, we briefly
+            // spawn it as active, and immediately switch back to the original tab.
+            const queryTabs = await browser.tabs.query({ active: true, currentWindow: true });
+            const prevActiveTabId = queryTabs.length > 0 ? queryTabs[0].id : undefined;
+            const scraperTab = await browser.tabs.create({ url: targetUrl, active: true });
+            logger.log("[doTabExtraction] Scraper tab created. tabId:", scraperTab.id, "windowId:", scraperTab.windowId, "| active: true (to bypass media throttle)");
             scraperTabId = scraperTab.id;
             scraperWindowId = scraperTab.windowId;
+            if (prevActiveTabId && scraperTabId !== prevActiveTabId) {
+                // Instantly flip back to the user's active tab. The scraper tab will have been
+                // momentarily active, which is enough to satisfy Chromium's media autoplay policy 
+                // in most cases WITHOUT visibly flashing the screen given it's async.
+                setTimeout(async () => {
+                    try {
+                        logger.log("[doTabExtraction] Flipping focus back to original tab:", prevActiveTabId);
+                        await browser.tabs.update(prevActiveTabId, { active: true });
+                    }
+                    catch (e) { }
+                }, 50);
+            }
             globalTimeoutId = setTimeout(() => {
                 logger.warn("[doTabExtraction] Global timeout reached after 35s. latestM3u8:", latestM3u8);
                 cleanup(latestM3u8 ? { src: latestM3u8, metadata: defaultMetadata } : null, "Timeout reached");
@@ -465,11 +477,30 @@ async function runCapturePipeline(data, tabId, windowId) {
             logger.warn("[runCapturePipeline] Item already exists in vault. Aborting save. url:", data.url);
             return { success: false, message: "Item already in vault" };
         }
+        data.timestamp = Date.now(); // BUG FIX: Dashboard scan for missing previews relies on this!
         saved.push(data);
         await saveVideos(saved);
         logger.log("[runCapturePipeline] Saved! New vault size:", saved.length);
         // BUG FIX: data.thumbnail can be falsy/empty string. Using optional chaining avoids TypeError.
         const thumbIsWebm = data.thumbnail?.startsWith('data:video');
+        if (thumbIsWebm) {
+            logger.log("[runCapturePipeline] Injected script captured WebM. Decoding and saving to IndexedDB.");
+            try {
+                const base64Data = data.thumbnail.split(',')[1];
+                const binaryString = atob(base64Data);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                const blob = new Blob([bytes], { type: 'video/webm' });
+                await savePreview(data.url, blob);
+                logger.log("[runCapturePipeline] Successfully saved injected WebM preview to Dexie.");
+            }
+            catch (err) {
+                logger.warn("[runCapturePipeline] Failed to save injected WebM to Dexie:", err);
+            }
+        }
         if (data.rawVideoSrc && !thumbIsWebm) {
             logger.log("[runCapturePipeline] Queuing background preview generation for:", data.rawVideoSrc);
             setupOffscreenDocument().then(() => {

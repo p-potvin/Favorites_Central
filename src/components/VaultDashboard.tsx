@@ -148,7 +148,7 @@ export const VaultDashboard: React.FC = () => {
   const [items, setItems] = useState<VideoData[]>([]);
   const [search, setSearch] = useState('');
   const [searchField, setSearchField] = useState<keyof VideoData>('title');
-  const [currentTheme, setCurrentTheme] = useState<number>(3);
+  const [currentTheme, setCurrentTheme] = useState<number>(10);
   
   // Sidebar states
   const [isSidebarOpen, setSidebarOpen] = useState(() => {
@@ -315,8 +315,8 @@ export const VaultDashboard: React.FC = () => {
       document.documentElement.setAttribute('data-theme', getThemeClass(themeNum));
       document.documentElement.classList.toggle('dark', mode === 'dark');
     } else {
-      document.documentElement.setAttribute('data-theme', getThemeClass(3));
-      document.documentElement.classList.add('dark');
+      document.documentElement.setAttribute('data-theme', getThemeClass(10));
+      // Solarized Light is a light theme — no 'dark' class needed
     }
 
     const savedSidebar = localStorage.getItem('vault-sidebar-open');
@@ -415,9 +415,9 @@ export const VaultDashboard: React.FC = () => {
   };
 
   const cycleTheme = () => {
-    const nextTheme = currentTheme === 9 ? 1 : currentTheme + 1;
+    const nextTheme = currentTheme >= 11 ? 1 : currentTheme + 1;
     setCurrentTheme(nextTheme);
-    const mode = VAULT_THEMES[nextTheme]?.mode || 'dark';
+    const mode = VAULT_THEMES[nextTheme]?.mode || 'light';
     document.documentElement.setAttribute('data-theme', getThemeClass(nextTheme));
     document.documentElement.classList.toggle('dark', mode === 'dark');
     localStorage.setItem('vault-theme', nextTheme.toString());

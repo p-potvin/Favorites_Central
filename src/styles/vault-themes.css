@@ -1,89 +1,186 @@
 [data-theme="vault-theme-vintage-velvet"] {
   --vault-bg: #F5F5DC;
-  --vault-text: #1A202C;
-  --vault-border: #e1e1c8;
-  --vault-card-bg: rgba(255,255,255,0.7);
-  --vault-muted: #718096;
+  --vault-surface: #ECE1CD;
+  --vault-surface-elevated: #E5D3C2;
+  --vault-text: #111827;
+  --vault-text-secondary: #4B5563;
   --vault-accent: #800020;
-  --vault-accent-hover: #6c000c;
+  --vault-accent-hover: #6E001C;
+  --vault-border: #DADAC6;
+  --vault-focus-ring: #6F0421;
+  --vault-muted: #4B5563;
+  --vault-success: #16A34A;
+  --vault-warning: #D97706;
+  --vault-danger: #DC2626;
+  --vault-card-bg: rgba(255,255,255,0.65);
 }
 
 [data-theme="vault-theme-cyberpunk-cinder"] {
   --vault-bg: #073642;
-  --vault-text: #F3F4F6;
-  --vault-border: #1b4a56;
-  --vault-card-bg: rgba(0,0,0,0.5);
-  --vault-muted: #A0AEC0;
+  --vault-surface: #17383E;
+  --vault-surface-elevated: #22393C;
+  --vault-text: #F8FAFC;
+  --vault-text-secondary: #CBD5E1;
   --vault-accent: #CB4B16;
-  --vault-accent-hover: #df5f2a;
+  --vault-accent-hover: #D26437;
+  --vault-border: #345A64;
+  --vault-focus-ring: #D67349;
+  --vault-muted: #CBD5E1;
+  --vault-success: #16A34A;
+  --vault-warning: #D97706;
+  --vault-danger: #DC2626;
+  --vault-card-bg: rgba(0,0,0,0.35);
 }
 
 [data-theme="vault-theme-golden-slate"] {
   --vault-bg: #4A5459;
-  --vault-text: #F3F4F6;
-  --vault-border: #5e686d;
-  --vault-card-bg: rgba(0,0,0,0.5);
-  --vault-muted: #A0AEC0;
+  --vault-surface: #555B56;
+  --vault-surface-elevated: #5D6154;
+  --vault-text: #F8FAFC;
+  --vault-text-secondary: #CBD5E1;
   --vault-accent: #D4AF37;
-  --vault-accent-hover: #e8c34b;
+  --vault-accent-hover: #DABA53;
+  --vault-border: #6B7377;
+  --vault-focus-ring: #DDC163;
+  --vault-muted: #CBD5E1;
+  --vault-success: #16A34A;
+  --vault-warning: #D97706;
+  --vault-danger: #DC2626;
+  --vault-card-bg: rgba(0,0,0,0.35);
 }
 
 [data-theme="vault-theme-modern-monolith"] {
   --vault-bg: #FAF9F6;
-  --vault-text: #1A202C;
-  --vault-border: #e6e5e2;
-  --vault-card-bg: rgba(255,255,255,0.7);
-  --vault-muted: #718096;
+  --vault-surface: #EAE9E6;
+  --vault-surface-elevated: #DEDDDB;
+  --vault-text: #111827;
+  --vault-text-secondary: #4B5563;
   --vault-accent: #333333;
-  --vault-accent-hover: #1f1f1f;
+  --vault-accent-hover: #2C2C2C;
+  --vault-border: #DEDEDD;
+  --vault-focus-ring: #2E2F31;
+  --vault-muted: #4B5563;
+  --vault-success: #16A34A;
+  --vault-warning: #D97706;
+  --vault-danger: #DC2626;
+  --vault-card-bg: rgba(255,255,255,0.65);
 }
 
 [data-theme="vault-theme-crimson-bloom"] {
   --vault-bg: #8B0000;
-  --vault-text: #F3F4F6;
-  --vault-border: #9f1414;
-  --vault-card-bg: rgba(0,0,0,0.5);
-  --vault-muted: #A0AEC0;
+  --vault-surface: #940F10;
+  --vault-surface-elevated: #9B1B1C;
+  --vault-text: #F8FAFC;
+  --vault-text-secondary: #CBD5E1;
   --vault-accent: #FFC0CB;
-  --vault-accent-hover: #ffd4df;
+  --vault-accent-hover: #FFC9D2;
+  --vault-border: #A02E2E;
+  --vault-focus-ring: #FFCED6;
+  --vault-muted: #CBD5E1;
+  --vault-success: #16A34A;
+  --vault-warning: #D97706;
+  --vault-danger: #DC2626;
+  --vault-card-bg: rgba(0,0,0,0.35);
 }
 
 [data-theme="vault-theme-ocean-mist"] {
   --vault-bg: #D3D3D3;
-  --vault-text: #1A202C;
-  --vault-border: #bfbfbf;
-  --vault-card-bg: rgba(255,255,255,0.7);
-  --vault-muted: #718096;
+  --vault-surface: #C2CBCE;
+  --vault-surface-elevated: #B5C4CA;
+  --vault-text: #111827;
+  --vault-text-secondary: #4B5563;
   --vault-accent: #006994;
-  --vault-accent-hover: #005580;
+  --vault-accent-hover: #005A7F;
+  --vault-border: #BCBDBE;
+  --vault-focus-ring: #035D84;
+  --vault-muted: #4B5563;
+  --vault-success: #16A34A;
+  --vault-warning: #D97706;
+  --vault-danger: #DC2626;
+  --vault-card-bg: rgba(255,255,255,0.65);
 }
 
 [data-theme="vault-theme-neon-void"] {
   --vault-bg: #222222;
-  --vault-text: #F3F4F6;
-  --vault-border: #363636;
-  --vault-card-bg: rgba(0,0,0,0.5);
-  --vault-muted: #A0AEC0;
+  --vault-surface: #1F3434;
+  --vault-surface-elevated: #1D4141;
+  --vault-text: #F8FAFC;
+  --vault-text-secondary: #CBD5E1;
   --vault-accent: #00FFFF;
-  --vault-accent-hover: #14ffff;
+  --vault-accent-hover: #24FFFF;
+  --vault-border: #4A4A4A;
+  --vault-focus-ring: #38FFFF;
+  --vault-muted: #CBD5E1;
+  --vault-success: #16A34A;
+  --vault-warning: #D97706;
+  --vault-danger: #DC2626;
+  --vault-card-bg: rgba(0,0,0,0.35);
 }
 
 [data-theme="vault-theme-royal-tangerine"] {
   --vault-bg: #4B0082;
-  --vault-text: #F3F4F6;
-  --vault-border: #5f1496;
-  --vault-card-bg: rgba(0,0,0,0.5);
-  --vault-muted: #A0AEC0;
+  --vault-surface: #580B78;
+  --vault-surface-elevated: #621370;
+  --vault-text: #F8FAFC;
+  --vault-text-secondary: #CBD5E1;
   --vault-accent: #F28500;
-  --vault-accent-hover: #ff9914;
+  --vault-accent-hover: #F49624;
+  --vault-border: #6B2E98;
+  --vault-focus-ring: #F5A038;
+  --vault-muted: #CBD5E1;
+  --vault-success: #16A34A;
+  --vault-warning: #D97706;
+  --vault-danger: #DC2626;
+  --vault-card-bg: rgba(0,0,0,0.35);
 }
 
 [data-theme="vault-theme-amethyst-frost"] {
   --vault-bg: #FDFDFD;
-  --vault-text: #1A202C;
-  --vault-border: #e9e9e9;
-  --vault-card-bg: rgba(255,255,255,0.7);
-  --vault-muted: #718096;
+  --vault-surface: #F3E9F3;
+  --vault-surface-elevated: #ECDAEC;
+  --vault-text: #111827;
+  --vault-text-secondary: #4B5563;
   --vault-accent: #800080;
-  --vault-accent-hover: #6c006c;
+  --vault-accent-hover: #6E006E;
+  --vault-border: #E1E2E3;
+  --vault-focus-ring: #6F0473;
+  --vault-muted: #4B5563;
+  --vault-success: #16A34A;
+  --vault-warning: #D97706;
+  --vault-danger: #DC2626;
+  --vault-card-bg: rgba(255,255,255,0.65);
+}
+
+[data-theme="vault-theme-solarized-light"] {
+  --vault-bg: #FDF6E3;
+  --vault-surface: #EEE8D5;
+  --vault-surface-elevated: #DDD6C1;
+  --vault-text: #657B83;
+  --vault-text-secondary: #93A1A1;
+  --vault-accent: #268BD2;
+  --vault-accent-hover: #1A6FAF;
+  --vault-border: #EEE8D5;
+  --vault-focus-ring: #268BD2;
+  --vault-muted: #93A1A1;
+  --vault-success: #859900;
+  --vault-warning: #B58900;
+  --vault-danger: #DC322F;
+  --vault-card-bg: rgba(255,255,255,0.65);
+}
+
+[data-theme="vault-theme-solarized-dark"] {
+  --vault-bg: #002B36;
+  --vault-surface: #073642;
+  --vault-surface-elevated: #0A4050;
+  --vault-text: #839496;
+  --vault-text-secondary: #586E75;
+  --vault-accent: #268BD2;
+  --vault-accent-hover: #3A9FE6;
+  --vault-border: #073642;
+  --vault-focus-ring: #268BD2;
+  --vault-muted: #586E75;
+  --vault-success: #859900;
+  --vault-warning: #B58900;
+  --vault-danger: #DC322F;
+  --vault-card-bg: rgba(0,0,0,0.35);
 }
