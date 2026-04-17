@@ -601,27 +601,9 @@ browser.runtime.onMessage.addListener((request: any) => {
 //  MUTATION OBSERVER (dynamic pages / SPAs)
 // ═══════════════════════════════════════════════════════════════════════════
 
-<<<<<<< Updated upstream
 const observer = new MutationObserver(() => {
     if (mutationTimeout) clearTimeout(mutationTimeout);
     mutationTimeout = setTimeout(() => highlightVaultItems(), 1200);
-=======
-    for (const mutation of mutations) {
-        // `MutationRecord.addedNodes` is a `NodeList` which isn't iterable unless `dom.iterable` is in tsconfig `lib`.
-        for (let i = 0; i < mutation.addedNodes.length; i++) {
-            const node = mutation.addedNodes[i];
-            if (node.nodeType !== Node.ELEMENT_NODE) continue;
-            const el = node as Element;
-            if (el.tagName === 'VIDEO') {
-                addVideoNode(el as HTMLVideoElement);
-            } else if (el.tagName === 'IMG') {
-                addImgNode(el as HTMLImageElement);
-            }
-            el.querySelectorAll<HTMLVideoElement>('video').forEach(addVideoNode);
-            el.querySelectorAll<HTMLImageElement>('img').forEach(addImgNode);
-        }
-    }
->>>>>>> Stashed changes
 });
 
 function init() {
