@@ -19,7 +19,35 @@ const LOG = "[Vault:content]";
 // ─── State ──────────────────────────────────────────────────────────────────
 let lastHoveredElement = null;
 let mutationTimeout = null;
+<<<<<<< Updated upstream
 // ─── Mouse Tracking ─────────────────────────────────────────────────────────
+=======
+const videoNodes = [];
+const imgNodes = [];
+const registeredVideos = new WeakSet();
+const registeredImgs = new WeakSet();
+function addVideoNode(el) {
+    if (registeredVideos.has(el))
+        return;
+    registeredVideos.add(el);
+    const src = el.src || el.querySelector('source')?.src || '';
+    videoNodes.push({ element: el, src });
+    console.log(`${LOG_PREFIX} addVideoNode: registered <video> src="${src.substring(0, 60)}"`);
+}
+function addImgNode(el) {
+    if (registeredImgs.has(el))
+        return;
+    registeredImgs.add(el);
+    const src = el.src || '';
+    imgNodes.push({ element: el, src });
+    console.log(`${LOG_PREFIX} addImgNode: registered <img> src="${src.substring(0, 60)}"`);
+}
+function gatherMediaNodes() {
+    document.querySelectorAll('video').forEach(addVideoNode);
+    document.querySelectorAll('img').forEach(addImgNode);
+    console.log(`${LOG_PREFIX} gatherMediaNodes: ${videoNodes.length} video(s), ${imgNodes.length} img(s) registered.`);
+}
+>>>>>>> Stashed changes
 document.addEventListener("mousemove", (e) => {
     lastHoveredElement = document.elementFromPoint(e.clientX, e.clientY);
 }, { passive: true });
@@ -285,6 +313,7 @@ function resolveTarget(el) {
     };
     if (!el)
         return result;
+<<<<<<< Updated upstream
     // Step 1: Find the thumbnail
     const thumb = findThumbnail(el);
     result.fallbackThumbnail = thumb.src;
@@ -301,6 +330,64 @@ function resolveTarget(el) {
     // Start from the hovered element for the widest context.
     result.localMeta = extractMetadata(el);
     console.log(LOG, "resolveTarget: meta=", result.localMeta);
+=======
+    }
+    const videoEntry = videoNodes.find(v => element.contains(v.element) || v.element.contains(element) || v.element === element);
+    const imgEntry = !videoEntry ? imgNodes.find(i => element.contains(i.element) || i.element.contains(element) || i.element === element) : undefined;
+    if (videoEntry) {
+        console.log(`${LOG_PREFIX} getBestTarget: found <video> in registry. Attempting frame capture.`);
+        result.fallbackThumbnail = captureVideoFrame(videoEntry.element);
+    }
+    else if (imgEntry) {
+        result.fallbackThumbnail = imgEntry.src;
+        console.log(`${LOG_PREFIX} getBestTarget: found <img> in registry. fallbackThumbnail src length=${result.fallbackThumbnail?.length ?? 0}`);
+    }
+    else {
+        console.log(`${LOG_PREFIX} getBestTarget: no <video> or <img> found in registry for element. fallbackThumbnail will be null.`);
+    }
+    const video = videoEntry?.element ?? null;
+    const anchor = element.closest('a');
+    if (anchor && anchor.href) {
+        result.url = anchor.href;
+        const score = scoreUrl(anchor.href);
+        if (score >= 1000)
+            result.isDirectVideo = true;
+        console.log(`${LOG_PREFIX} getBestTarget: resolved URL from anchor href:`, result.url, "| score:", score, "| isDirectVideo:", result.isDirectVideo);
+        return result;
+    }
+    if (video) {
+        const src = videoEntry?.src || video.src || video.querySelector('source')?.src;
+        if (src && !src.startsWith('blob:')) {
+            result.url = src;
+            result.isDirectVideo = true;
+            console.log(`${LOG_PREFIX} getBestTarget: resolved URL from video.src:`, result.url);
+            return result;
+        }
+        else {
+            console.warn(`${LOG_PREFIX} getBestTarget: video.src is a blob or empty:`, video.src);
+        }
+    }
+    // Coordinate Fallback with scoreUrl prioritization
+    const rect = element.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const nearbyLinks = [
+        document.elementFromPoint(x, y - 30)?.closest('a'),
+        document.elementFromPoint(x, y + 30)?.closest('a'),
+        document.elementFromPoint(x - 30, y)?.closest('a'),
+        document.elementFromPoint(x + 30, y)?.closest('a')
+    ].filter((link) => link !== undefined && link !== null && !!link.href);
+    if (nearbyLinks.length > 0) {
+        nearbyLinks.sort((a, b) => scoreUrl(b.href) - scoreUrl(a.href));
+        result.url = nearbyLinks[0].href;
+        if (scoreUrl(result.url) >= 1000)
+            result.isDirectVideo = true;
+        console.log(`${LOG_PREFIX} getBestTarget: resolved URL from coordinate fallback:`, result.url, "| score:", scoreUrl(result.url));
+    }
+    else {
+        console.warn(`${LOG_PREFIX} getBestTarget: no anchor found via coordinates. Using window.location.href:`, result.url);
+    }
+>>>>>>> Stashed changes
     return result;
 }
 // ═══════════════════════════════════════════════════════════════════════════
@@ -514,6 +601,7 @@ browser.runtime.onMessage.addListener((request) => {
     }
     return undefined;
 });
+<<<<<<< Updated upstream
 // ═══════════════════════════════════════════════════════════════════════════
 //  MUTATION OBSERVER (dynamic pages / SPAs)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -521,6 +609,32 @@ const observer = new MutationObserver(() => {
     if (mutationTimeout)
         clearTimeout(mutationTimeout);
     mutationTimeout = setTimeout(() => highlightVaultItems(), 1200);
+=======
+const observer = new MutationObserver((mutations) => {
+    if (mutationTimeout)
+        clearTimeout(mutationTimeout);
+    mutationTimeout = setTimeout(() => {
+        console.log(`${LOG_PREFIX} MutationObserver: DOM changed. Rescanning for saved items...`);
+        highlightVaultItems();
+    }, 1200);
+    for (const mutation of mutations) {
+        // `MutationRecord.addedNodes` is a `NodeList` which isn't iterable unless `dom.iterable` is in tsconfig `lib`.
+        for (let i = 0; i < mutation.addedNodes.length; i++) {
+            const node = mutation.addedNodes[i];
+            if (node.nodeType !== Node.ELEMENT_NODE)
+                continue;
+            const el = node;
+            if (el.tagName === 'VIDEO') {
+                addVideoNode(el);
+            }
+            else if (el.tagName === 'IMG') {
+                addImgNode(el);
+            }
+            el.querySelectorAll('video').forEach(addVideoNode);
+            el.querySelectorAll('img').forEach(addImgNode);
+        }
+    }
+>>>>>>> Stashed changes
 });
 function init() {
     if (document.body) {
@@ -529,8 +643,25 @@ function init() {
     }
 }
 if (document.body) {
+<<<<<<< Updated upstream
     init();
 }
 else {
     window.addEventListener("DOMContentLoaded", init);
+=======
+    observer.observe(document.body, { childList: true, subtree: true });
+    console.log(`${LOG_PREFIX} MutationObserver attached. Running initial highlightVaultItems.`);
+    gatherMediaNodes();
+    highlightVaultItems();
+}
+else {
+    window.addEventListener("DOMContentLoaded", () => {
+        if (document.body) {
+            observer.observe(document.body, { childList: true, subtree: true });
+            console.log(`${LOG_PREFIX} DOMContentLoaded: MutationObserver attached. Running initial highlightVaultItems.`);
+            gatherMediaNodes();
+            highlightVaultItems();
+        }
+    });
+>>>>>>> Stashed changes
 }

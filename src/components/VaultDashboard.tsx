@@ -119,13 +119,13 @@ const PreviewThumb: React.FC<{ video: VideoData }> = ({ video }) => {
           playsInline
         />
       ) : (
-        <img 
-          src={video.thumbnail} 
-          alt={video.title} 
+        <SafeThumbImg
+          src={video.thumbnail}
+          alt={video.title || 'Saved video thumbnail'}
           className={cn(
             "w-full h-full object-cover transition-opacity duration-300",
             isHovering ? "opacity-0" : "opacity-100"
-          )} 
+          )}
         />
       )}
       
@@ -141,6 +141,44 @@ const PreviewThumb: React.FC<{ video: VideoData }> = ({ video }) => {
         )
       )}
     </div>
+  );
+};
+
+const ThumbFallback: React.FC<{ compact?: boolean; label?: string }> = ({ compact, label }) => {
+  if (compact) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-vault-cardBg to-vault-bg/50">
+        <Icons.DebugIcon size={18} className="opacity-20" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-vault-cardBg to-vault-bg/50">
+      <Icons.DebugIcon size={32} className="opacity-10 mb-1" />
+      <span className="text-[10px] font-mono opacity-30">{label || 'NO PREVIEW'}</span>
+    </div>
+  );
+};
+
+const SafeThumbImg: React.FC<{
+  src?: string | null;
+  alt: string;
+  className?: string;
+  compact?: boolean;
+}> = ({ src, alt, className, compact }) => {
+  const [isBroken, setIsBroken] = useState(false);
+
+  if (!src || isBroken) return <ThumbFallback compact={compact} />;
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      onError={() => setIsBroken(true)}
+    />
   );
 };
 
@@ -255,9 +293,13 @@ export const VaultDashboard: React.FC = () => {
       }
     });
   };
+  type SortKey = keyof VideoData | 'DateDesc' | 'DateAsc';
+
   const [groupBy, setGroupBy] = useState(() => localStorage.getItem('vault-group-by') || 'Hostname');
-  const [sortBy, setSortBy] = useState<keyof VideoData | 'DateDesc' | 'DateAsc'>(() => (localStorage.getItem('vault-sort-by') as any) || 'DateDesc');
+  const [sortBy, setSortBy] = useState<SortKey>(() => (localStorage.getItem('vault-sort-by') as any) || 'DateDesc');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => (localStorage.getItem('vault-sort-order') as any) || 'desc');
+  const [sortBy2, setSortBy2] = useState<SortKey | 'None'>(() => (localStorage.getItem('vault-sort-by-2') as any) || 'None');
+  const [sortOrder2, setSortOrder2] = useState<'asc' | 'desc'>(() => (localStorage.getItem('vault-sort-order-2') as any) || 'asc');
   const [viewSize, setViewSize] = useState<number>(() => {
     const saved = localStorage.getItem('vault-view-size');
     return saved ? parseInt(saved, 10) : 3;
@@ -274,6 +316,14 @@ export const VaultDashboard: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('vault-sort-order', sortOrder);
   }, [sortOrder]);
+
+  useEffect(() => {
+    localStorage.setItem('vault-sort-by-2', sortBy2);
+  }, [sortBy2]);
+
+  useEffect(() => {
+    localStorage.setItem('vault-sort-order-2', sortOrder2);
+  }, [sortOrder2]);
 
   useEffect(() => {
     localStorage.setItem('vault-view-size', viewSize.toString());
@@ -335,6 +385,12 @@ export const VaultDashboard: React.FC = () => {
 
     const savedSortOrder = localStorage.getItem('vault-sort-order');
     if (savedSortOrder) setSortOrder(savedSortOrder as 'asc' | 'desc');
+
+    const savedSortBy2 = localStorage.getItem('vault-sort-by-2');
+    if (savedSortBy2) setSortBy2(savedSortBy2 as any);
+
+    const savedSortOrder2 = localStorage.getItem('vault-sort-order-2');
+    if (savedSortOrder2) setSortOrder2(savedSortOrder2 as 'asc' | 'desc');
 
     const load = async () => {
       console.log("[VaultDashboard] Loading vault data...");
@@ -448,12 +504,17 @@ export const VaultDashboard: React.FC = () => {
   }, [items, search, searchField]);
 
   const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      if (sortBy === 'DateDesc') return b.timestamp - a.timestamp;
-      if (sortBy === 'DateAsc') return a.timestamp - b.timestamp;
-      
-      const valA = a[sortBy as keyof VideoData];
-      const valB = b[sortBy as keyof VideoData];
+    const compareBy = (
+      a: VideoData,
+      b: VideoData,
+      key: SortKey,
+      order: 'asc' | 'desc'
+    ) => {
+      if (key === 'DateDesc') return b.timestamp - a.timestamp;
+      if (key === 'DateAsc') return a.timestamp - b.timestamp;
+
+      const valA = a[key as keyof VideoData];
+      const valB = b[key as keyof VideoData];
 
       if (valA === undefined || valA === null) return 1;
       if (valB === undefined || valB === null) return -1;
@@ -465,9 +526,22 @@ export const VaultDashboard: React.FC = () => {
         comparison = valA.toString().localeCompare(valB.toString());
       }
 
-      return sortOrder === 'asc' ? comparison : -comparison;
+      return order === 'asc' ? comparison : -comparison;
+    };
+
+    return [...filtered].sort((a, b) => {
+      const primary = compareBy(a, b, sortBy, sortOrder);
+      if (primary !== 0) return primary;
+
+      if (sortBy2 !== 'None') {
+        const secondary = compareBy(a, b, sortBy2, sortOrder2);
+        if (secondary !== 0) return secondary;
+      }
+
+      // Deterministic fallback to keep UI stable between renders.
+      return b.timestamp - a.timestamp;
     });
-  }, [filtered, sortBy, sortOrder]);
+  }, [filtered, sortBy, sortOrder, sortBy2, sortOrder2]);
 
   const grouped = useMemo(() => {
     if (groupBy === 'None') return { 'All Items': sorted };
@@ -493,6 +567,15 @@ export const VaultDashboard: React.FC = () => {
     6: 'grid-cols-1 xl:grid-cols-2', // Biggest
   };
 
+  const viewModeLabels: Record<number, string> = {
+    1: 'Details',
+    2: 'List',
+    3: 'Small',
+    4: 'Medium',
+    5: 'Large',
+    6: 'Biggest',
+  };
+
   const itemsPerPageParams: Record<number, number> = {
     1: 50, // Compact Details
     2: 10, // List
@@ -515,6 +598,34 @@ export const VaultDashboard: React.FC = () => {
       ...prev,
       [groupName]: Math.max(0, (prev[groupName] || 0) + delta)
     }));
+  };
+
+  const formatDuration = (duration: VideoData["duration"]) => {
+    if (duration === undefined || duration === null) return "";
+    if (typeof duration !== "number") return String(duration);
+    const totalSeconds = Math.max(0, Math.floor(duration));
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const openOrPlay = (fav: VideoData) => {
+    if (fav.type === "video" && fav.rawVideoSrc) {
+      setPlayingVideo(fav);
+      setVideoError(false);
+      setIsRefreshing(false);
+      return;
+    }
+
+    // Test-mode override: suppress popups during automated tests
+    if (typeof window !== "undefined" && (window as any).__TEST_MODE__) {
+      if ((window as any).__MOCK_WINDOW_OPEN__) {
+        (window as any).__MOCK_WINDOW_OPEN__(fav.url);
+      }
+      return;
+    }
+
+    window.open(fav.url, "_blank");
   };
 
   return (
@@ -592,6 +703,9 @@ export const VaultDashboard: React.FC = () => {
             <div>
               <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
                 <Icons.ViewModeIcon size={14} className="text-vault-accent" /> View Mode
+                <span className="ml-auto text-[9px] font-black text-vault-text bg-vault-cardBg/40 border border-vault-border px-2 py-0.5 rounded-full tracking-wider">
+                  {viewModeLabels[viewSize] || `Mode ${viewSize}`}
+                </span>
               </label>
               <input 
                 type="range" 
@@ -637,11 +751,11 @@ export const VaultDashboard: React.FC = () => {
               </select>
             </div>
 
-            {/* Sorting */}
-            <div className="space-y-2">
-               <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
-                <Icons.SortIcon size={14} className="text-vault-accent" /> Sort Params
-              </label>
+             {/* Sorting */}
+             <div className="space-y-2">
+                <label className="text-xs font-bold text-vault-muted uppercase tracking-widest flex items-center gap-2 mb-2">
+                 <Icons.SortIcon size={14} className="text-vault-accent" /> Sort Params
+               </label>
               <div className="flex gap-2">
                 <select 
                   value={sortBy}
@@ -667,12 +781,45 @@ export const VaultDashboard: React.FC = () => {
                 <button
                   onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                   className="vault-btn p-1 px-2 text-[10px] font-bold"
-                  title="Toggle Asc/Desc"
+                  title="Toggle primary sort order"
                 >
                   {sortOrder === 'asc' ? 'ASC' : 'DESC'}
                 </button>
               </div>
-            </div>
+
+              <div className="flex gap-2">
+                <select 
+                  value={sortBy2}
+                  onChange={(e) => setSortBy2(e.target.value as any)}
+                  className="flex-1 bg-vault-bg border border-vault-border text-[10px] p-1.5 rounded outline-none focus:border-vault-accent text-vault-text"
+                >
+                  <option value="None">Then by (none)</option>
+                  <optgroup label="Metadata Fields">
+                    <option value="title">Title</option>
+                    <option value="author">Author</option>
+                    <option value="domain">Domain</option>
+                    <option value="views">Views</option>
+                    <option value="likes">Likes</option>
+                    <option value="dislikes">Dislikes</option>
+                    <option value="quality">Quality</option>
+                    <option value="resolution">Resolution</option>
+                    <option value="size">Size</option>
+                    <option value="timestamp">Date Saved</option>
+                    <option value="datePublished">Date Published</option>
+                  </optgroup>
+                </select>
+                <button
+                  onClick={() => setSortOrder2(prev => prev === 'asc' ? 'desc' : 'asc')}
+                  className={cn(
+                    "vault-btn p-1 px-2 text-[10px] font-bold",
+                    sortBy2 === 'None' && "opacity-40 pointer-events-none"
+                  )}
+                  title="Toggle secondary sort order"
+                >
+                  {sortOrder2 === 'asc' ? 'ASC' : 'DESC'}
+                </button>
+              </div>
+             </div>
             
             <hr className="border-vault-border opacity-50 my-2" />
             
@@ -760,8 +907,8 @@ export const VaultDashboard: React.FC = () => {
                 className={cn(
                   "w-full vault-btn p-2 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2",
                   isSyncing 
-                    ? "bg-vault-accent text-vault-bg border-none hover:border-dashed hover:border-vault-bg/50 hover:bg-vault-accentHover" 
-                    : "border-dashed border-vault-border text-vault-muted opacity-60 hover:opacity-100"
+                    ? "bg-vault-accent text-vault-bg border border-transparent hover:border-dashed hover:border-vault-bg/50 hover:bg-vault-accentHover" 
+                    : "bg-vault-cardBg/10 border-dashed border-vault-border text-vault-muted opacity-70 hover:opacity-100 hover:bg-vault-cardBg/30 hover:border-vault-accent/30 hover:text-vault-text"
                 )}
                 title={isFirefox ? "Use Firefox Sync Storage" : "Use Chrome Sync Storage"}
               >
@@ -874,15 +1021,30 @@ export const VaultDashboard: React.FC = () => {
                     "grid gap-4 md:gap-6",
                     viewClasses[viewSize as keyof typeof viewClasses]
                   )}>
-                    {displayItems.map((fav, idx) => (
-                      <div key={`${fav.url}-${idx}`} className={cn(
-                        "vault-card group relative flex transform transition-all hover:shadow-lg overflow-hidden",
-                        viewSize === 1 
-                          ? "flex-row items-center gap-2 h-10 px-3 py-1 border-b border-vault-border rounded-none shadow-none hover:bg-vault-cardBg/50" 
-                          : viewSize === 2 
-                            ? "flex-row items-stretch gap-4 h-[110px] p-0 hover:-translate-y-1" 
-                            : "flex-col h-[280px]"
-                      )}>
+                    {displayItems.map((fav, idx) => {
+                      const rowIndex = idx + 1 + (currentPage * itemsPerPage);
+                      const displayDomain = (fav.domain && fav.domain !== 'Unknown')
+                        ? fav.domain
+                        : (() => {
+                            try { return new URL(fav.url).hostname.replace('www.', ''); } catch { return 'unknown'; }
+                          })();
+                      const durationLabel = fav.duration ? formatDuration(fav.duration) : "";
+
+                      return (
+                        <div key={`${fav.url}-${idx}`} className={cn(
+                          "vault-card group relative flex transform transition-all hover:shadow-lg overflow-hidden",
+                          viewSize === 1 
+                            ? "flex-row items-stretch gap-4 min-h-[60px] px-4 py-2 border-b border-vault-border/70 rounded-none shadow-none hover:bg-vault-cardBg/30" 
+                            : viewSize === 2 
+                              ? "flex-row items-stretch gap-4 h-[110px] p-0 hover:-translate-y-1" 
+                              : viewSize === 3
+                                ? "flex-col h-[260px]"
+                                : viewSize === 4
+                                  ? "flex-col h-[270px]"
+                                  : viewSize === 5
+                                    ? "flex-col h-[280px]"
+                                    : "flex-col h-[300px]"
+                        )}>
                         
                         {/* THUMBNAIL AREA */}
                         {viewSize >= 2 && (
@@ -890,36 +1052,18 @@ export const VaultDashboard: React.FC = () => {
                             onClick={(e) => {
                               // If clicking an action button inside the thumb, don't trigger play
                               if ((e.target as HTMLElement).closest('.thumb-action')) return;
-
-                              if (fav.type === 'video' && fav.rawVideoSrc) {
-                                setPlayingVideo(fav);
-                                setVideoError(false);
-                                setIsRefreshing(false);
-                              } else {
-                                // Test-mode override: suppress popups during automated tests
-                                if (typeof window !== 'undefined' && (window as any).__TEST_MODE__) {
-                                  if ((window as any).__MOCK_WINDOW_OPEN__) {
-                                    (window as any).__MOCK_WINDOW_OPEN__(fav.url);
-                                  }
-                                  // No-op in test mode
-                                } else {
-                                  window.open(fav.url, '_blank');
-                                }
-                              }
+                              openOrPlay(fav);
                             }}
                             className={viewSize === 2 ? "relative w-2/5 flex-none bg-vault-cardBg/50 overflow-hidden cursor-pointer group/thumb rounded-l-lg border-r border-vault-border" : "relative w-full h-[180px] flex-none bg-vault-cardBg/50 overflow-hidden cursor-pointer group/thumb border-b border-vault-border rounded-t-lg"}
                           >
                             {fav.type === 'video' ? (
                               <PreviewThumb video={fav} />
                             ) : (
-                              fav.thumbnail ? (
-                                <img src={fav.thumbnail} alt={fav.title} className="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-105" />
-                              ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-vault-cardBg to-vault-bg/50">
-                                    <Icons.DebugIcon size={32} className="opacity-10 mb-1" />
-                                    <span className="text-[10px] font-mono opacity-30">NO PREVIEW</span>
-                                </div>
-                              )
+                              <SafeThumbImg
+                                src={fav.thumbnail}
+                                alt={fav.title || 'Saved item thumbnail'}
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-105"
+                              />
                             )}
 
                             {/* Corner Accents */}
@@ -947,9 +1091,7 @@ export const VaultDashboard: React.FC = () => {
                             {/* Duration Badge */}
                             {fav.duration && (
                               <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] font-mono font-bold px-1.5 py-0.5 rounded shadow z-20">
-                                {typeof fav.duration === 'number' 
-                                  ? `${Math.floor(fav.duration / 60)}:${(fav.duration % 60).toString().padStart(2, '0')}` 
-                                  : fav.duration}
+                                {formatDuration(fav.duration)}
                               </div>
                             )}
 
@@ -977,93 +1119,245 @@ export const VaultDashboard: React.FC = () => {
                         )}
 
                         {/* DETAILS AREA */}
-                        <div className={cn("z-10 relative flex flex-col flex-1", viewSize === 1 ? "flex-row items-center justify-between w-full min-h-[60px]" : "p-4")}>
-                          
-                          <div className={cn("flex justify-between items-start mb-2", viewSize === 1 && "mb-0")}>
-                            <div className="flex gap-2 items-center">
-                              <span className={cn(
-                                "text-[10px] uppercase font-bold tracking-widest text-vault-bg bg-vault-muted px-2 py-0.5 rounded-sm",
-                                viewSize === 1 && "flex items-center justify-center h-5"
-                              )}>
-                                {viewSize > 1 ? `#${idx + 1 + (currentPage * itemsPerPage)}` : 'V-ID'}
-                              </span>
-                            </div>
-                            {viewSize <= 2 && (
-                                <div className="flex gap-1 ml-auto">
-                                  <button onClick={(e) => { e.stopPropagation(); handleEdit(fav); }} className="vault-btn p-1 flex items-center justify-center border-none hover:bg-vault-cardBg" title="Edit">
-                                    <Icons.EditIcon size={14} className="text-vault-muted hover:text-vault-accent" />
-                                  </button>
-                                  <button onClick={(e) => { e.stopPropagation(); handleDelete(fav.url); }} className="vault-btn p-1 flex items-center justify-center border-none hover:bg-vault-cardBg" title="Delete">
-                                    <Icons.DeleteIcon size={14} className="text-vault-muted hover:text-red-500" />
-                                  </button>
+                        <div className={cn(
+                          "z-10 relative flex flex-col flex-1",
+                          viewSize === 1 ? "py-1" : "p-4"
+                        )}>
+                          {viewSize === 1 ? (
+                            <div className="flex items-center gap-4 w-full">
+                              {/* V-ID badge */}
+                              <div className="w-14 shrink-0 flex flex-col items-center justify-center text-center">
+                                <span className="text-[9px] uppercase tracking-widest text-vault-muted font-bold opacity-80 leading-none">
+                                  V-ID
+                                </span>
+                                <span className="text-[12px] font-black text-vault-text leading-none mt-1">
+                                  #{rowIndex}
+                                </span>
+                              </div>
+
+                              {/* Compact thumb */}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); openOrPlay(fav); }}
+                                className="relative w-24 h-14 shrink-0 overflow-hidden rounded-md border border-vault-border bg-vault-cardBg/40 hover:bg-vault-cardBg/60 transition-colors"
+                                title={fav.type === "video" ? "Play" : "Open"}
+                              >
+                                <SafeThumbImg
+                                  src={fav.thumbnail}
+                                  alt={fav.title || "Saved item thumbnail"}
+                                  className="w-full h-full object-cover"
+                                  compact
+                                />
+                                <div className="absolute inset-0 bg-black/10 hover:bg-black/0 transition-colors" />
+                                {fav.type === "video" && (
+                                  <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[9px] font-mono font-bold px-1 py-0.5 rounded">
+                                    {durationLabel || "VID"}
+                                  </div>
+                                )}
+                              </button>
+
+                              {/* Primary info + metadata */}
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="min-w-0">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); openOrPlay(fav); }}
+                                      className="text-left font-bold leading-tight line-clamp-1 text-[15px] hover:text-vault-accent transition-colors"
+                                      title={fav.title || "Untitled Reference"}
+                                    >
+                                      {fav.title || "Untitled Reference"}
+                                    </button>
+                                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-vault-muted font-mono">
+                                      <span className="truncate max-w-[420px]" title={fav.url}>{displayDomain}</span>
+                                      {fav.author && <span className="opacity-80">• {fav.author}</span>}
+                                      {(fav.views || fav.likes) && (
+                                        <span className="opacity-70">
+                                          • {fav.views ? `${fav.views} views` : ""}{fav.views && fav.likes ? " / " : ""}{fav.likes ? `${fav.likes} likes` : ""}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="shrink-0 flex items-center gap-2">
+                                    <span className="text-[10px] font-semibold text-vault-muted tracking-wider">
+                                      {new Date(fav.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                                    </span>
+                                    <a
+                                      href={fav.url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-[10px] font-bold text-vault-bg bg-vault-accent hover:bg-vault-accentHover transition-colors flex items-center gap-1 px-3 py-1.5 rounded-sm"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      OPEN <Icons.ChevronRightIcon size={12} strokeWidth={3} />
+                                    </a>
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleEdit(fav); }}
+                                        className="vault-btn p-1 flex items-center justify-center border-none hover:bg-vault-cardBg"
+                                        title="Edit"
+                                      >
+                                        <Icons.EditIcon size={14} className="text-vault-muted hover:text-vault-accent" />
+                                      </button>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleDelete(fav.url); }}
+                                        className="vault-btn p-1 flex items-center justify-center border-none hover:bg-vault-cardBg"
+                                        title="Delete"
+                                      >
+                                        <Icons.DeleteIcon size={14} className="text-vault-muted hover:text-red-500" />
+                                      </button>
+                                    </div>
+                                  </div>
                                 </div>
-                            )}
-                          </div>
-                          
-                          <div className={cn("flex-1", viewSize === 1 ? "flex items-center justify-between w-full ml-4" : "flex flex-col")}>
-                            <div className={viewSize === 1 ? "flex-1 mr-4" : ""}>
-                              <h3 className={cn(
-                                "font-bold mb-1 leading-snug cursor-pointer hover:text-vault-accent transition-colors",
-                                viewSize === 1 ? "text-base line-clamp-1" : "text-[15px] line-clamp-2"
-                              )}>
-                                {fav.title || 'Untitled Reference'}
-                              </h3>
-                              <p className="text-xs text-vault-muted truncate max-w-[250px] font-mono opacity-80" title={fav.url}>
-                                {(fav.domain && fav.domain !== 'Unknown') ? fav.domain : (() => { try { return new URL(fav.url).hostname.replace('www.', '') } catch { return 'unknown' } })()}
-                              </p>
-                            </div>
-                            
-                            {viewSize > 1 && (
-                              <div className="mt-3 space-y-1 mb-2 flex-1">
-                                {fav.author && (
-                                  <p className="text-[11px] text-vault-text line-clamp-1"><span className="text-vault-muted">By:</span> {fav.author}</p>
+
+                                {(fav.type || fav.resolution || fav.quality || fav.size || fav.bitrate || fav.length || durationLabel) && (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    <span className="text-[9px] bg-vault-cardBg/25 border border-vault-border/70 px-1.5 py-0.5 rounded text-vault-muted uppercase tracking-wider font-bold">
+                                      {fav.type}
+                                    </span>
+                                    {durationLabel && (
+                                      <span className="text-[9px] bg-vault-cardBg/25 border border-vault-border/70 px-1.5 py-0.5 rounded text-vault-muted font-mono font-bold">
+                                        {durationLabel}
+                                      </span>
+                                    )}
+                                    {fav.resolution && (
+                                      <span className="text-[9px] bg-vault-cardBg/25 border border-vault-border/70 px-1.5 py-0.5 rounded text-vault-muted">
+                                        Res: <span className="text-vault-text font-semibold">{fav.resolution}</span>
+                                      </span>
+                                    )}
+                                    {fav.quality && (
+                                      <span className="text-[9px] bg-vault-cardBg/25 border border-vault-border/70 px-1.5 py-0.5 rounded text-vault-muted">
+                                        Quality: <span className="text-vault-text font-semibold">{fav.quality}</span>
+                                      </span>
+                                    )}
+                                    {fav.bitrate && (
+                                      <span className="text-[9px] bg-vault-cardBg/25 border border-vault-border/70 px-1.5 py-0.5 rounded text-vault-muted">
+                                        Bitrate: <span className="text-vault-text font-semibold">{fav.bitrate}</span>
+                                      </span>
+                                    )}
+                                    {fav.size && (
+                                      <span className="text-[9px] bg-vault-cardBg/25 border border-vault-border/70 px-1.5 py-0.5 rounded text-vault-muted">
+                                        Size: <span className="text-vault-text font-semibold">{fav.size}</span>
+                                      </span>
+                                    )}
+                                    {fav.length && (
+                                      <span className="text-[9px] bg-vault-cardBg/25 border border-vault-border/70 px-1.5 py-0.5 rounded text-vault-muted">
+                                        Length: <span className="text-vault-text font-semibold">{fav.length}</span>
+                                      </span>
+                                    )}
+                                  </div>
                                 )}
-                                {fav.actors && fav.actors.length > 0 && (
-                                  <p className="text-[11px] text-vault-accent line-clamp-1 opacity-90"><span className="text-vault-muted">With:</span> {fav.actors.join(', ')}</p>
-                                )}
-                                {(fav.views || fav.likes) && (
-                                  <p className="text-[11px] text-vault-muted flex gap-3 mt-1">
-                                    {fav.views && <span><strong>{fav.views}</strong> views</span>}
-                                    {fav.likes && <span><strong>{fav.likes}</strong> likes</span>}
-                                  </p>
-                                )}
+
                                 {fav.tags && fav.tags.length > 0 && (
-                                  <div className="flex flex-wrap gap-1 mt-2">
-                                    {fav.tags.slice(0, 3).map(tag => (
-                                      <span key={tag} className="text-[9px] bg-vault-cardBg border border-vault-border px-1.5 py-0.5 rounded text-vault-muted inline-block">
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {fav.tags.slice(0, 6).map(tag => (
+                                      <span
+                                        key={tag}
+                                        className="text-[9px] bg-vault-cardBg/40 border border-vault-border px-1.5 py-0.5 rounded text-vault-muted inline-block"
+                                      >
                                         {tag}
                                       </span>
                                     ))}
-                                    {fav.tags.length > 3 && (
-                                      <span className="text-[9px] bg-vault-cardBg/50 border border-vault-border border-dashed px-1.5 py-0.5 rounded text-vault-muted inline-block">
-                                        +{fav.tags.length - 3}
+                                    {fav.tags.length > 6 && (
+                                      <span className="text-[9px] bg-vault-cardBg/30 border border-vault-border border-dashed px-1.5 py-0.5 rounded text-vault-muted inline-block">
+                                        +{fav.tags.length - 6}
                                       </span>
                                     )}
                                   </div>
                                 )}
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className={cn("flex justify-between items-start mb-2", viewSize === 1 && "mb-0")}>
+                                <div className="flex gap-2 items-center">
+                                  <span className={cn(
+                                    "text-[10px] uppercase font-bold tracking-widest text-vault-bg bg-vault-muted px-2 py-0.5 rounded-sm",
+                                    viewSize === 1 && "flex items-center justify-center h-5"
+                                  )}>
+                                    {`#${rowIndex}`}
+                                  </span>
+                                </div>
+                                {viewSize <= 2 && (
+                                    <div className="flex gap-1 ml-auto">
+                                      <button onClick={(e) => { e.stopPropagation(); handleEdit(fav); }} className="vault-btn p-1 flex items-center justify-center border-none hover:bg-vault-cardBg" title="Edit">
+                                        <Icons.EditIcon size={14} className="text-vault-muted hover:text-vault-accent" />
+                                      </button>
+                                      <button onClick={(e) => { e.stopPropagation(); handleDelete(fav.url); }} className="vault-btn p-1 flex items-center justify-center border-none hover:bg-vault-cardBg" title="Delete">
+                                        <Icons.DeleteIcon size={14} className="text-vault-muted hover:text-red-500" />
+                                      </button>
+                                    </div>
+                                )}
+                              </div>
+                              
+                              <div className={cn("flex-1", viewSize === 1 ? "flex items-center justify-between w-full ml-4" : "flex flex-col")}>
+                                <div className={viewSize === 1 ? "flex-1 mr-4" : ""}>
+                                  <h3 className={cn(
+                                    "font-bold mb-1 leading-snug cursor-pointer hover:text-vault-accent transition-colors",
+                                    viewSize === 1 ? "text-base line-clamp-1" : "text-[15px] line-clamp-2"
+                                  )}>
+                                    {fav.title || 'Untitled Reference'}
+                                  </h3>
+                                  <p className="text-xs text-vault-muted truncate max-w-[250px] font-mono opacity-80" title={fav.url}>
+                                    {displayDomain}
+                                  </p>
+                                </div>
+                                
+                                {viewSize > 1 && (
+                                  <div className="mt-3 space-y-1 mb-2 flex-1">
+                                    {fav.author && (
+                                      <p className="text-[11px] text-vault-text line-clamp-1"><span className="text-vault-muted">By:</span> {fav.author}</p>
+                                    )}
+                                    {fav.actors && fav.actors.length > 0 && (
+                                      <p className="text-[11px] text-vault-accent line-clamp-1 opacity-90"><span className="text-vault-muted">With:</span> {fav.actors.join(', ')}</p>
+                                    )}
+                                    {(fav.views || fav.likes) && (
+                                      <p className="text-[11px] text-vault-muted flex gap-3 mt-1">
+                                        {fav.views && <span><strong>{fav.views}</strong> views</span>}
+                                        {fav.likes && <span><strong>{fav.likes}</strong> likes</span>}
+                                      </p>
+                                    )}
+                                    {fav.tags && fav.tags.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-2">
+                                        {fav.tags.slice(0, 3).map(tag => (
+                                          <span key={tag} className="text-[9px] bg-vault-cardBg border border-vault-border px-1.5 py-0.5 rounded text-vault-muted inline-block">
+                                            {tag}
+                                          </span>
+                                        ))}
+                                        {fav.tags.length > 3 && (
+                                          <span className="text-[9px] bg-vault-cardBg/50 border border-vault-border border-dashed px-1.5 py-0.5 rounded text-vault-muted inline-block">
+                                            +{fav.tags.length - 3}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
 
-                          <div className={cn(
-                            "flex items-center justify-between border-vault-border pt-3 mt-auto",
-                            viewSize === 1 ? "border-none ml-4 gap-4 mt-0 pt-0" : "border-t"
-                          )}>
-                            <span className="text-[11px] font-semibold text-vault-muted tracking-wider">
-                              {new Date(fav.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric'})}
-                            </span>
-                            <a 
-                              href={fav.url} 
-                              target="_blank" 
-                              rel="noreferrer"
-                              className="text-[10px] font-bold text-vault-bg bg-vault-accent hover:bg-vault-accentHover transition-colors flex items-center gap-1 px-3 py-1.5 rounded-sm"
-                            >
-                              OPEN <Icons.ChevronRightIcon size={12} strokeWidth={3} className="group-hover:translate-x-0.5 transition-transform" />
-                            </a>
-                          </div>
+                              <div className={cn(
+                                "flex items-center justify-between border-vault-border pt-3 mt-auto",
+                                viewSize === 1 ? "border-none ml-4 gap-4 mt-0 pt-0" : "border-t"
+                              )}>
+                                <span className="text-[11px] font-semibold text-vault-muted tracking-wider">
+                                  {new Date(fav.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric'})}
+                                </span>
+                                <a 
+                                  href={fav.url} 
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                  className="text-[10px] font-bold text-vault-bg bg-vault-accent hover:bg-vault-accentHover transition-colors flex items-center gap-1 px-3 py-1.5 rounded-sm"
+                                >
+                                  OPEN <Icons.ChevronRightIcon size={12} strokeWidth={3} className="group-hover:translate-x-0.5 transition-transform" />
+                                </a>
+                              </div>
+                            </>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 </section>
               );
