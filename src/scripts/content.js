@@ -517,10 +517,29 @@ browser.runtime.onMessage.addListener((request) => {
 // ═══════════════════════════════════════════════════════════════════════════
 //  MUTATION OBSERVER (dynamic pages / SPAs)
 // ═══════════════════════════════════════════════════════════════════════════
-const observer = new MutationObserver(() => {
-    if (mutationTimeout)
+const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+        for (let i = 0; i < mutation.addedNodes.length; i++) {
+            const node = mutation.addedNodes[i];
+            if (node.nodeType !== Node.ELEMENT_NODE)
+                continue;
+            const el = node;
+            // If new video/image elements are added, we might want to process them directly
+            // For now, we rely on highlightVaultItems to re-scan the DOM
+            // if (el.tagName === 'VIDEO') { addVideoNode(el as HTMLVideoElement); }
+            // else if (el.tagName === 'IMG') { addImgNode(el as HTMLImageElement); }
+            // el.querySelectorAll<HTMLVideoElement>('video').forEach(addVideoNode);
+            // el.querySelectorAll<HTMLImageElement>('img').forEach(addImgNode);
+        }
+    }
+    // Debounce the highlight function to avoid excessive calls on rapid DOM changes
+    if (mutationTimeout) {
         clearTimeout(mutationTimeout);
-    mutationTimeout = setTimeout(() => highlightVaultItems(), 1200);
+    }
+    mutationTimeout = setTimeout(() => {
+        highlightVaultItems();
+        // Potentially add other DOM-related updates here if needed in the future
+    }, 1200); // Wait 1.2 seconds after the last mutation to highlight
 });
 function init() {
     if (document.body) {
