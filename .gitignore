@@ -12,3 +12,5 @@ vault_central.zip
 .vscode
 .vscode-test
 .omx
+*.log
+package-lock.json

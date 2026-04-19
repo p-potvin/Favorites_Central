@@ -3,14 +3,23 @@ import { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import browser from 'webextension-polyfill';
 import { getPinSettings, savePinSettings, isVaultLocked } from './lib/storage-vault';
+import { getThemeClass, VAULT_THEMES } from './lib/themes';
 import * as Icons from './lib/icons';
 import './styles/globals.css';
+import './styles/vault-themes.css';
 const PinPopup = () => {
     const [pinSettings, setPinSettings] = useState(null);
     const [pin, setPin] = useState([]);
     const [error, setError] = useState(false);
     const [isLocked, setIsLocked] = useState(true);
     const inputsRef = useRef([]);
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('vault-theme');
+        const themeNum = savedTheme ? parseInt(savedTheme, 10) : 10;
+        const mode = VAULT_THEMES[themeNum]?.mode || 'light';
+        document.documentElement.setAttribute('data-theme', getThemeClass(themeNum));
+        document.documentElement.classList.toggle('dark', mode === 'dark');
+    }, []);
     useEffect(() => {
         const load = async () => {
             const settings = await getPinSettings();
@@ -70,39 +79,13 @@ const PinPopup = () => {
     // Usually the action should be blocked before showing popup if possible, 
     // but if popup opens, we handle it.
     if (!pinSettings.enabled) {
-        return (_jsxs("div", { className: "w-[320px] p-6 bg-[#0b0f19] text-white flex flex-col items-center gap-4 border border-[#1e293b]", children: [_jsx("style", { children: `
-          .vault-btn {
-            background: #1e293b;
-            border: 1px solid #334155;
-            color: #94a3b8;
-            transition: all 0.2s;
-          }
-          .vault-btn:hover {
-            background: #2563eb;
-            border-color: #3b82f6;
-            color: white;
-            box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.5);
-          }
-        ` }), _jsx(Icons.FingerprintIcon, { size: 32, className: "text-[#3b82f6]" }), _jsx("p", { className: "text-[10px] font-mono uppercase tracking-[0.2em] font-bold", children: "Vault Unsecured" }), _jsx("button", { onClick: () => {
+        return (_jsxs("div", { className: "w-[320px] p-6 bg-vault-bg text-vault-text flex flex-col items-center gap-4 border border-vault-border", children: [_jsx(Icons.FingerprintIcon, { size: 32, className: "text-vault-accent" }), _jsx("p", { className: "text-[10px] font-mono uppercase tracking-[0.2em] font-bold", children: "Vault Unsecured" }), _jsx("button", { onClick: () => {
                         browser.runtime.sendMessage({ action: "open_dashboard" });
                         window.close();
                     }, className: "vault-btn w-full p-3 text-[11px] font-black uppercase tracking-widest rounded-md", children: "Open Dashboard" })] }));
     }
     if (!isLocked) {
-        return (_jsxs("div", { className: "w-[320px] p-6 bg-[#0b0f19] text-white flex flex-col items-center gap-4 animate-in fade-in duration-500 border border-[#1e293b]", children: [_jsx("style", { children: `
-          .vault-btn {
-            background: #1e293b;
-            border: 1px solid #334155;
-            color: #94a3b8;
-            transition: all 0.2s;
-          }
-          .vault-btn:hover {
-            background: #2563eb;
-            border-color: #3b82f6;
-            color: white;
-            box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.5);
-          }
-        ` }), _jsx(Icons.UnlockIcon, { size: 32, className: "text-[#10b981] animate-pulse" }), _jsx("p", { className: "text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-[#10b981]", children: "Vault Unlocked" }), _jsx("div", { className: "w-full h-px bg-[#1e293b]" }), _jsx("button", { onClick: () => {
+        return (_jsxs("div", { className: "w-[320px] p-6 bg-vault-bg text-vault-text flex flex-col items-center gap-4 animate-in fade-in duration-200 border border-vault-border", children: [_jsx(Icons.UnlockIcon, { size: 32, className: "text-vault-success" }), _jsx("p", { className: "text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-vault-success", children: "Vault Unlocked" }), _jsx("div", { className: "w-full h-px bg-vault-border" }), _jsx("button", { onClick: () => {
                         browser.runtime.sendMessage({ action: "open_dashboard" });
                         window.close();
                     }, className: "vault-btn w-full p-3 text-[11px] font-black uppercase tracking-widest rounded-md", children: "Access Mainframe" })] }));
